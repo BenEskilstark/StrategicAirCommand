@@ -1,0 +1,78 @@
+html {
+  touch-action: none;
+}
+
+body {
+  box-sizing: border-box;
+  margin: 0;
+  background-color: #faf8ef;
+  overflow: hidden;
+  position: fixed;
+  width: 100%;
+  height: 100%;
+  user-select: none;
+  touch-action: none;
+  -webkit-user-select: none;
+}
+
+/* include border and padding in element width and height */
+* {
+  box-sizing: border-box;
+}
+
+.container {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  overflow-y: scroll;
+  position: relative;
+  margin: auto;
+  font-family: "Courier New", sans-serif;
+  font-weight: 300;
+  touch-action: none;
+}
+
+h1 {
+  font-size: 7em;
+  color: #CD5C5C;
+  margin-bottom: 0;
+  margin-top: 18px;
+}
+
+h2 {
+  font-size: 5em;
+  color: #CD5C5C;
+}
+
+h3 {
+  margin-top: 0;
+  color: #CD5C5C;
+}
+
+
+.displayChildOnHover:hover {
+  background-color: rgba(100, 100, 100, 0.2);
+}
+.displayChildOnHover:hover > .hidden {
+  display: block;
+}
+.hidden {
+  display: none;
+}
+
+button {
+  font-family: "Courier New", sans-serif;
+}
+
+#PLAY_button {
+  background-color: #CD5C5C;
+}
+#PLAY_button:hover {
+  background-color: #568f56;
+  border: '3px solid red';
+}
+
+.FactionPerson:first-child {
+  margin-top: 5px;
+  margin-bottom: 40px;
+}
