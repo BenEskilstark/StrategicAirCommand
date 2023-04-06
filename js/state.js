@@ -28,30 +28,30 @@ const initGameState = (
     planeDesigns: {
       1: {
        'U-2': {
-         name: 'U-2', type: 'RECON', fuel: 3000, vision: 120, speed: 0.75,
+         name: 'U-2', type: 'RECON', fuel: 3000, vision: 120, speed: 0.75, ammo: 0,
         },
        'B-52': {
-         name: 'B-52', type: 'BOMBER', fuel: 2400, vision: 40, speed: 0.9,
+         name: 'B-52', type: 'BOMBER', fuel: 2400, vision: 40, speed: 0.9, ammo: 1,
         },
        'F-101': {
-         name: 'F-101', type: 'FIGHTER', fuel: 1500, vision: 45, speed: 1.8,
+         name: 'F-101', type: 'FIGHTER', fuel: 1500, vision: 45, speed: 1.8, ammo: 4,
         },
        'F-106': {
-         name: 'F-106', type: 'FIGHTER', fuel: 500, vision: 55, speed: 2.3,
+         name: 'F-106', type: 'FIGHTER', fuel: 600, vision: 55, speed: 2.3, ammo: 3,
         },
       },
       2: {
         'MIG-19': {
-          name: 'MIG-19', type: 'FIGHTER', fuel: 1200, vision: 50, speed: 1.4,
+          name: 'MIG-19', type: 'FIGHTER', fuel: 1200, vision: 50, speed: 1.4, ammo: 1,
         },
         'MIG-21': {
-          name: 'MIG-21', type: 'FIGHTER', fuel: 500, vision: 50, speed: 2,
+          name: 'MIG-21', type: 'FIGHTER', fuel: 500, vision: 50, speed: 2, ammo: 1,
         },
         'IL-28': {
-          name: 'IL-28', type: 'BOMBER', fuel: 1400, vision: 60, speed: 1,
+          name: 'IL-28', type: 'BOMBER', fuel: 1400, vision: 60, speed: 1, ammo: 1,
         },
         'TU-95': {
-          name: 'TU-95', type: 'BOMBER', fuel: 3000, vision: 60, speed: 0.6,
+          name: 'TU-95', type: 'BOMBER', fuel: 3000, vision: 60, speed: 0.6, ammo: 1,
         },
       },
     },
@@ -126,8 +126,8 @@ const makePlane = (
     fuel,
     vision,
     speed,
-    productionTime,
     name,
+    ammo,
   } = parameters;
   return {
     clientID, id: nextID++,
@@ -138,8 +138,8 @@ const makePlane = (
     fuel,
     vision,
     speed,
-    productionTime,
     name,
+    ammo,
 
     position,
     targetPos,

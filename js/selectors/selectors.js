@@ -57,6 +57,27 @@ const getEntitiesByType = (game, clientID, type) => {
   return entities;
 }
 
+const normalizePos = (pos, worldSize, canvasSize) => {
+  return {
+    x: pos.x * worldSize.width / canvasSize.width,
+    y: pos.y * worldSize.height / canvasSize.height,
+  };
+}
+
+const getCanvasSize = () => {
+  if (window.innerWidth > window.innerHeight) {
+    return {
+      width: window.innerHeight,
+      height: window.innerHeight,
+    };
+  } else {
+    return {
+      width: window.innerWidth,
+      height: window.innerWidth,
+    };
+  }
+}
+
 module.exports = {
   getNearestAirbase,
   getEntitiesByPlayer,
@@ -64,4 +85,6 @@ module.exports = {
   getNumAirbases,
   isHost,
   getEntitiesByType,
+  normalizePos,
+  getCanvasSize,
 };

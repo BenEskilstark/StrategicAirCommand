@@ -3,12 +3,11 @@ const {Button, Divider} = require('bens_ui_components');
 const {useEffect, useState, useMemo} = React;
 
 const PlaneDesignDisplay = (props) => {
-  const {planeDesign, dispatch, money} = props;
+  const {planeDesign} = props;
 
   return (
     <div
       style={{
-        width: '50%',
       }}
     >
       <div
@@ -24,11 +23,11 @@ const PlaneDesignDisplay = (props) => {
           padding: 5,
         }}
       >
-        <div>Speed: Mach {planeDesign.speed}</div>
+        <div>Speed: mach {planeDesign.speed}</div>
         <div>Range: {planeDesign.fuel} miles</div>
         <div>Vision: {planeDesign.vision} miles</div>
+        <div>Ammo: {planeDesign.ammo}</div>
       </div>
-      <Divider style={{marginTop: 4, marginBottom: 4}} />
     </div>
   );
 };

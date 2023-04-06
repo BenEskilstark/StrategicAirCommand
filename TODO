@@ -1,12 +1,14 @@
 
   - play test
     - reduce clutter
-    - planes should have a maximum number of attacks they can do
+    - have planes fly in squadrons
+
+  - bugs
+    - deselect planes that are destroyed
+    - marquee doesn't always render
 
   - plane stats UI
-  - lobby UI
+    - selection card shouldn't show at all when nothing is selected
+  - pause
 
-
-  - maybe features
-    - planes have to refit before they can launch again
 

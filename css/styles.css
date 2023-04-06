@@ -65,14 +65,13 @@ button {
 }
 
 #PLAY_button {
-  background-color: #CD5C5C;
+  width: 50%;
+  height: 30;
+  color: #6ce989;
+  background-color: black;
 }
 #PLAY_button:hover {
   background-color: #568f56;
   border: '3px solid red';
 }
 
-.FactionPerson:first-child {
-  margin-top: 5px;
-  margin-bottom: 40px;
-}

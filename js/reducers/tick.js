@@ -94,7 +94,8 @@ const tick = (state) => {
           game.stats[targetEntity.clientID].recons_shot_down++;
           didKill = true;
         }
-        if (didKill) { // compute aces
+        if (didKill) { // compute aces, ammo
+          entity.ammo--;
           entity.kills++;
           if (entity.kills == 5) {
             game.stats[entity.clientID].fighter_aces++;
@@ -144,10 +145,16 @@ const tick = (state) => {
             other.hasBeenDiscovered = true;
           }
           // target:
-          if (entity.type == 'FIGHTER' && entity.targetEnemy == null && other.isPlane) {
+          if (
+            entity.type == 'FIGHTER' && entity.ammo > 0 &&
+            entity.targetEnemy == null && other.isPlane
+          ) {
             entity.targetEnemy = otherID;
           }
-          if (entity.type == 'BOMBER' && entity.targetEnemy == null && other.isBuilding) {
+          if (
+            entity.type == 'BOMBER' && entity.ammo > 0 &&
+            entity.targetEnemy == null && other.isBuilding
+          ) {
             entity.targetEnemy = otherID;
           }
         }

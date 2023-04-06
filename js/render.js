@@ -74,9 +74,14 @@ const render = (state) => {
         ctx.closePath();
         ctx.stroke();
       }
+      ctx.strokeStyle = "gold";
+    }
+    if (entity.ammo == 0 && entity.type != 'RECON') {
+      ctx.strokeStyle = 'red';
+    }
+    if (game.selectedIDs.includes(entityID) || (entity.ammo == 0 && entity.type != 'RECON')) {
       // selection outline
       ctx.lineWidth = 2;
-      ctx.strokeStyle = "gold";
       ctx.beginPath();
       if (shape === 'square') {
         ctx.rect(entity.position.x - width / 2, entity.position.y - height / 2, width, height);
