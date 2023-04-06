@@ -25,6 +25,9 @@ const initGameState = (
     launchName: 'U-2',
     showStats: true,
 
+    showEnemies: false, // for debugging
+    showEnemyFlightPaths: false, // for debugging
+
     planeDesigns: {
       1: {
        'U-2': {
@@ -98,6 +101,7 @@ const initGameState = (
   return game;
 };
 
+
 let nextID = 1;
 const makeAirbase = (clientID, position, planes) => {
   return {
@@ -117,6 +121,7 @@ const makeAirbase = (clientID, position, planes) => {
     targetEnemy: null,
   };
 }
+
 
 const makePlane = (
   clientID, position, type, targetPos,
@@ -149,8 +154,25 @@ const makePlane = (
   };
 }
 
+
+const makeExplosion = (
+  position, maxRadius, duration,
+) => {
+  return {
+    id: nextID++,
+    type: 'EXPLOSION',
+    duration,
+    age: 0,
+    position,
+    maxRadius,
+    clientID: 2,
+    hasBeenDiscovered: true,
+  }
+};
+
 module.exports = {
   initGameState,
   makeAirbase,
   makePlane,
+  makeExplosion,
 };

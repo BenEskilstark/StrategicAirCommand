@@ -1,16 +1,13 @@
 const React = require('react');
 const {
-  Button, InfoCard, Divider,
-  Plot, plotReducer,
-  Canvas, RadioPicker,
-  Modal, Indicator,
+  Canvas,
   useMouseHandler,
   useHotKeyHandler,
-  useEnhancedReducer,
 } = require('bens_ui_components');
 const {render} = require('../render');
 const {useState, useMemo, useEffect, useReducer} = React;
 const {initAI} = require('../daemons/aiControl');
+const {dist, subtract, add} = require('bens_utils').vectors;
 const LeftHandSideBar = require('./LeftHandSideBar.react');
 const {normalizePos, getCanvasSize} = require('../selectors/selectors');
 
@@ -60,6 +57,7 @@ function Game(props) {
       },
       rightDown: (state, dispatch, p) => {
         const pos = normalizePos(p, state.game.worldSize, getCanvasSize());
+        const leadPlaneID = state.game.selectedIDs[0];
         for (const entityID of state.game.selectedIDs) {
           const entity = state.game.entities[entityID];
           if (entity.type == 'AIRBASE' && state.game.clickMode == 'LAUNCH') {
@@ -68,7 +66,13 @@ function Game(props) {
               name: state.game.launchName, clientID: state.game.clientID,
             });
           } else {
-            dispatch({type: 'SET_TARGET', targetPos: pos, entityID});
+            const leadPlane = state.game.entities[leadPlaneID];
+            let adjustedPos = pos;
+            if (dist(entity.position, leadPlane.position) < state.config.formationRadius) {
+              const diff = subtract(leadPlane.position, entity.position);
+              adjustedPos = subtract(pos, diff);
+            }
+            dispatch({type: 'SET_TARGET', targetPos: adjustedPos, entityID});
           }
         }
       },

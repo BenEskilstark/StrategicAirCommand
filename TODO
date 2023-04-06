@@ -1,13 +1,13 @@
 
-  - play test
-    - reduce clutter
-    - have planes fly in squadrons
+  - AI
+    - better flight paths
+    - IL's don't ever reach the airbase
 
   - bugs
     - deselect planes that are destroyed
     - marquee doesn't always render
+    - enemy bombers appear to have infinite ammo
 
-  - plane stats UI
   - pause
 
 

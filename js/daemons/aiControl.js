@@ -15,7 +15,7 @@ const initAI = (getState, dispatch) => {
     }
     const {config, game} = state;
 
-    const airbases = getEntitiesByType(game, aiID, 'AIRBASE');
+    const airbases = getEntitiesByType(game, 'AIRBASE', aiID);
     const airbase = oneOf(airbases);
 
     const planeDesign = game.planeDesigns[aiID][oneOf(Object.keys(game.planeDesigns[aiID]))];

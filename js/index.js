@@ -1,4 +1,4 @@
-import Main from './UI/Main.react';
+import Main from './ui/Main.react';
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 

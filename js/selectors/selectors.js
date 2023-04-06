@@ -46,11 +46,11 @@ const isHost = (clientID) => {
   return clientID == 1;
 }
 
-const getEntitiesByType = (game, clientID, type) => {
+const getEntitiesByType = (game, type, clientID) => {
   const entities = [];
   for (const entityID in game.entities) {
     const entity = game.entities[entityID];
-    if (entity.clientID == clientID && entity.type == type) {
+    if ((entity.clientID == clientID || !clientID) && entity.type == type) {
       entities.push(entity);
     }
   }

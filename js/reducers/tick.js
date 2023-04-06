@@ -5,13 +5,22 @@ const {
 } = require('bens_utils').vectors;
 const {
   getEntitiesByPlayer, getNearestAirbase, getOtherClientID,
-  getNumAirbases,
+  getNumAirbases, getEntitiesByType,
 } = require('../selectors/selectors');
-const GameOverModal = require('../UI/GameOverModal.react');
+const {makeExplosion} = require('../state');
+const GameOverModal = require('../ui/GameOverModal.react');
 
 const tick = (state) => {
   const game = state.game;
   game.time += 1;
+
+  // update explosions
+  for (const explosion of getEntitiesByType(game, 'EXPLOSION')) {
+    explosion.age++;
+    if (explosion.age > explosion.duration) {
+      delete game.entities[explosion.id];
+    }
+  }
 
   // move and fight
   for (const entityID in game.entities) {
@@ -65,9 +74,16 @@ const tick = (state) => {
         if (entity.type == 'FIGHTER' && targetEntity.type == 'FIGHTER' &&
           targetEntity.targetEnemy == entityID && Math.random() < 0.5
         ) {
+          const explosion = makeExplosion(
+            entity.position,
+            entity.isBuilding ? 25 : 10,
+            1200 / state.config.msPerTick,
+          );
+          game.entities[explosion.id] = explosion;
           delete game.entities[entityID];
           game.stats[entity.clientID].fighters_shot_down++;
           targetEntity.kills++;
+          targetEntity.ammo--;
           if (targetEntity.kills == 5) {
             game.stats[targetEntity.clientID].fighter_aces++;
           }
@@ -76,29 +92,35 @@ const tick = (state) => {
         }
         let didKill = false;
         if (targetEntity.type == 'AIRBASE') {
-          delete game.entities[targetEntity.id];
           game.stats[targetEntity.clientID].airbases_destroyed++;
-          if (getNumAirbases(game, targetEntity.clientID) == 0) {
-            return doGameOver(state, entity.clientID);
-          }
+          didKill = true;
         } else if (targetEntity.type == 'FIGHTER') {
-          delete game.entities[targetEntity.id];
           game.stats[targetEntity.clientID].fighters_shot_down++;
           didKill = true;
         } else if (targetEntity.type == 'BOMBER') {
-          delete game.entities[targetEntity.id];
           game.stats[targetEntity.clientID].bombers_shot_down++;
           didKill = true;
         } else if (targetEntity.type == 'RECON') { // update stats based on RECON
-          delete game.entities[targetEntity.id];
           game.stats[targetEntity.clientID].recons_shot_down++;
           didKill = true;
         }
-        if (didKill) { // compute aces, ammo
+
+        // kill target, compute aces, ammo
+        if (didKill) {
           entity.ammo--;
           entity.kills++;
           if (entity.kills == 5) {
             game.stats[entity.clientID].fighter_aces++;
+          }
+          const explosion = makeExplosion(
+            targetEntity.position,
+            targetEntity.isBuilding ? 25 : 10,
+            1200 / state.config.msPerTick,
+          );
+          game.entities[explosion.id] = explosion;
+          delete game.entities[targetEntity.id];
+          if (getNumAirbases(game, targetEntity.clientID) == 0) {
+            return doGameOver(state, entity.clientID);
           }
         }
       } else {

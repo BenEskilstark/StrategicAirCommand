@@ -1,573 +1,4 @@
 (function(){function r(e,n,t){function o(i,f){if(!n[i]){if(!e[i]){var c="function"==typeof require&&require;if(!f&&c)return c(i,!0);if(u)return u(i,!0);var a=new Error("Cannot find module '"+i+"'");throw a.code="MODULE_NOT_FOUND",a}var p=n[i]={exports:{}};e[i][0].call(p.exports,function(r){var n=e[i][1][r];return o(n||r)},p,p.exports,r,e,n,t)}return n[i].exports}for(var u="function"==typeof require&&require,i=0;i<t.length;i++)o(t[i]);return o}return r})()({1:[function(require,module,exports){
-const React = require('react');
-const {
-  Button,
-  InfoCard,
-  Divider,
-  Plot,
-  plotReducer,
-  Canvas,
-  RadioPicker,
-  Modal,
-  Indicator,
-  useMouseHandler,
-  useHotKeyHandler,
-  useEnhancedReducer
-} = require('bens_ui_components');
-const {
-  render
-} = require('../render');
-const {
-  useState,
-  useMemo,
-  useEffect,
-  useReducer
-} = React;
-const {
-  initAI
-} = require('../daemons/aiControl');
-const LeftHandSideBar = require('./LeftHandSideBar.react');
-const {
-  normalizePos,
-  getCanvasSize
-} = require('../selectors/selectors');
-function Game(props) {
-  const {
-    state,
-    dispatch,
-    getState
-  } = props;
-  const game = state.game;
-  useEffect(() => {
-    initAI(getState, dispatch);
-  }, []);
-
-  // rendering
-  useEffect(() => {
-    render(state);
-  }, [game.entities, game.selectedIDs, game.marquee]);
-
-  // mouse
-  useMouseHandler("canvas", {
-    dispatch,
-    getState
-  }, {
-    leftDown: (state, dispatch, p) => {
-      const pos = normalizePos(p, state.game.worldSize, getCanvasSize());
-      dispatch({
-        type: 'SET',
-        marquee: {
-          ...pos,
-          width: 0,
-          height: 0
-        }
-      });
-    },
-    mouseMove: (state, dispatch, p) => {
-      var _state$mouse;
-      const pos = normalizePos(p, state.game.worldSize, getCanvasSize());
-      if (!(state !== null && state !== void 0 && (_state$mouse = state.mouse) !== null && _state$mouse !== void 0 && _state$mouse.isLeftDown)) return;
-      dispatch({
-        type: 'SET',
-        marquee: {
-          ...state.game.marquee,
-          width: pos.x - state.game.marquee.x,
-          height: pos.y - state.game.marquee.y
-        }
-      });
-    },
-    leftUp: (state, dispatch, p) => {
-      const pos = normalizePos(p, state.game.worldSize, getCanvasSize());
-      let square = {
-        ...state.game.marquee
-      };
-      if (square.width < 0) {
-        square.x += square.width;
-        square.width *= -1;
-      }
-      if (square.height < 0) {
-        square.y += square.height;
-        square.height *= -1;
-      }
-      dispatch({
-        type: 'SELECT_ENTITIES',
-        square
-      });
-      dispatch({
-        type: 'SET',
-        marquee: null
-      });
-    },
-    rightDown: (state, dispatch, p) => {
-      const pos = normalizePos(p, state.game.worldSize, getCanvasSize());
-      for (const entityID of state.game.selectedIDs) {
-        const entity = state.game.entities[entityID];
-        if (entity.type == 'AIRBASE' && state.game.clickMode == 'LAUNCH') {
-          dispatch({
-            type: 'LAUNCH_PLANE',
-            targetPos: pos,
-            airbaseID: entityID,
-            name: state.game.launchName,
-            clientID: state.game.clientID
-          });
-        } else {
-          dispatch({
-            type: 'SET_TARGET',
-            targetPos: pos,
-            entityID
-          });
-        }
-      }
-    }
-  });
-
-  // hotKeys
-  useHotKeyHandler({
-    dispatch,
-    getState: () => getState().game.hotKeys
-  });
-  useEffect(() => {
-    const planeNames = Object.keys(game.planeDesigns[state.clientID]);
-    for (let i = 0; i < planeNames.length; i++) {
-      const name = planeNames[i];
-      dispatch({
-        type: 'SET_HOTKEY',
-        key: "" + (i + 1),
-        press: 'onKeyDown',
-        fn: () => {
-          dispatch({
-            type: 'SET',
-            launchName: name
-          });
-          dispatch({
-            type: 'SET',
-            clickMode: 'LAUNCH'
-          });
-        }
-      });
-    }
-  }, []);
-  return /*#__PURE__*/React.createElement("div", {
-    style: {
-      width: '100%',
-      height: '100%',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      backgroundColor: 'rgb(35,36,38)'
-    }
-  }, /*#__PURE__*/React.createElement("img", {
-    style: {
-      position: 'absolute'
-    },
-    src: "./img/polar_world_map_2.png",
-    width: getCanvasSize().width,
-    height: getCanvasSize().height
-  }), /*#__PURE__*/React.createElement(Canvas, {
-    style: {
-      opacity: 0.7,
-      borderRadius: '49%'
-    },
-    view: game.worldSize,
-    onResize: (width, height) => {
-      dispatch({
-        type: 'SET',
-        canvasSize: {
-          width,
-          height
-        }
-      });
-    },
-    width: getCanvasSize().width,
-    height: getCanvasSize().height
-  }), /*#__PURE__*/React.createElement(LeftHandSideBar, {
-    state: state,
-    dispatch: dispatch
-  }));
-}
-module.exports = Game;
-},{"../daemons/aiControl":8,"../render":14,"../selectors/selectors":15,"./LeftHandSideBar.react":3,"bens_ui_components":40,"react":55}],2:[function(require,module,exports){
-const React = require('react');
-const {
-  Modal
-} = require('bens_ui_components');
-const {
-  useEffect,
-  useState,
-  useMemo
-} = React;
-const GameOverModal = props => {
-  const {
-    winner,
-    disconnect,
-    stats
-  } = props;
-  const state = getState(); // HACK this comes from window;
-
-  let title = winner == state.clientID ? 'You Win!' : 'You Lose!';
-  let body = winner == state.clientID ? "You destroyed the enemy airbase" : "Your airbase was destroyed";
-  if (disconnect) {
-    title = "Opponent Disconnected";
-    body = "The other player has closed the tab and disconnected. So I guess you win by forfeit...";
-  }
-  let otherClientID = null;
-  for (const id in stats) {
-    if (id != state.clientID) otherClientID = id;
-  }
-  body = /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", null, body), /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: 'flex',
-      flexDirection: 'row',
-      gap: 70
-    }
-  }, /*#__PURE__*/React.createElement(PlayerStats, {
-    clientID: state.clientID,
-    otherID: otherClientID,
-    isYou: true,
-    stats: stats
-  }), /*#__PURE__*/React.createElement(PlayerStats, {
-    clientID: otherClientID,
-    otherID: state.clientID,
-    isYou: false,
-    stats: stats
-  })));
-  return /*#__PURE__*/React.createElement(Modal, {
-    title: title,
-    body: body,
-    style: {
-      padding: 15,
-      width: 650
-    },
-    buttons: [{
-      label: 'Back to Menu',
-      onClick: () => {
-        dispatch({
-          type: 'DISMISS_MODAL'
-        });
-        dispatch({
-          type: 'SET_SCREEN',
-          screen: 'LOBBY'
-        });
-      }
-    }]
-  });
-};
-const PlayerStats = props => {
-  const {
-    isYou,
-    stats,
-    otherID,
-    clientID
-  } = props;
-  return /*#__PURE__*/React.createElement("div", {
-    style: {}
-  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("b", null, isYou ? 'You' : 'Opponent')), /*#__PURE__*/React.createElement("div", null, "Fighter sorties flown: ", stats[clientID].fighter_sorties), /*#__PURE__*/React.createElement("div", null, "Bomber sorties flown: ", stats[clientID].bomber_sorties), /*#__PURE__*/React.createElement("div", null, "Enemy fighters shot down: ", stats[otherID].fighters_shot_down), /*#__PURE__*/React.createElement("div", null, "Enemy bombers shot down: ", stats[otherID].bombers_shot_down), /*#__PURE__*/React.createElement("div", null, "Fighter aces: ", stats[clientID].fighter_aces), /*#__PURE__*/React.createElement("div", null, "Planes lost to no fuel: ", stats[clientID].planes_no_fuel), /*#__PURE__*/React.createElement("div", null, "Enemy airbases destroyed: ", stats[otherID].airbases_destroyed));
-};
-module.exports = GameOverModal;
-},{"bens_ui_components":40,"react":55}],3:[function(require,module,exports){
-const React = require('react');
-const {
-  Button,
-  InfoCard,
-  Divider,
-  Plot,
-  plotReducer,
-  Canvas,
-  RadioPicker,
-  Modal,
-  Indicator,
-  useMouseHandler,
-  useHotKeyHandler,
-  useEnhancedReducer
-} = require('bens_ui_components');
-const PlaneDesignDisplay = require('./PlaneDesignDisplay.react');
-const {
-  useEffect,
-  useState,
-  useMemo
-} = React;
-const LeftHandSideBar = props => {
-  const {
-    state,
-    dispatch
-  } = props;
-  const {
-    game
-  } = state;
-
-  // selectionCard
-  let selectionContent = null;
-  let shouldShowPlaneDetail = null;
-  const planeNames = Object.keys(game.planeDesigns[state.clientID]);
-  if (game.selectedIDs.length > 0) {
-    const selections = {
-      'AIRBASE': 0
-    };
-    for (const name of planeNames) {
-      selections[name] = 0;
-    }
-    for (const entityID of game.selectedIDs) {
-      const entity = game.entities[entityID];
-      if (entity) {
-        selections[entity.name] += 1;
-      }
-    }
-    const planesSelected = [];
-    for (const name in selections) {
-      if (selections[name] > 0) {
-        planesSelected.push( /*#__PURE__*/React.createElement("div", {
-          key: "plane_" + name
-        }, name, ": ", selections[name]));
-      }
-    }
-    if (planesSelected.length > 0) {
-      selectionContent = /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
-        style: {
-          textAlign: 'center'
-        }
-      }, /*#__PURE__*/React.createElement("b", null, "Aircraft")), planesSelected);
-    }
-    if (selections.AIRBASE > 0) {
-      const airbase = game.entities[game.selectedIDs[0]];
-      const airbasePlanes = [];
-      for (const name in airbase.planes) {
-        airbasePlanes.push( /*#__PURE__*/React.createElement("div", {
-          key: "airbase_plane_" + name
-        }, name, ": ", airbase.planes[name]));
-      }
-      shouldShowPlaneDetail = state.game.launchName;
-      selectionContent = /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
-        style: {
-          textAlign: 'center'
-        }
-      }, /*#__PURE__*/React.createElement("b", null, "Airbase")), state.game.clickMode == 'LAUNCH' ? /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", null, "Launch Type: "), /*#__PURE__*/React.createElement(RadioPicker, {
-        options: planeNames,
-        displayOptions: planeNames.map(name => {
-          const planeType = game.planeDesigns[state.clientID][name].type;
-          return `${name} (${planeType}): ${airbase.planes[name]}`;
-        }),
-        selected: state.game.launchName,
-        onChange: launchName => dispatch({
-          type: 'SET',
-          launchName
-        })
-      })) : null);
-    }
-  }
-  return /*#__PURE__*/React.createElement("div", {
-    style: {
-      visibility: game.selectedIDs.length > 0 ? 'visible' : 'hidden',
-      position: 'absolute',
-      display: 'flex',
-      flexDirection: 'column',
-      gap: 20,
-      top: 0,
-      left: 0,
-      margin: 4,
-      minWidth: 150,
-      color: '#6ce989'
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      // border: '1px solid black',
-      padding: 8
-      // backgroundColor: 'white',
-    }
-  }, selectionContent), /*#__PURE__*/React.createElement(PlaneDetail, {
-    name: shouldShowPlaneDetail,
-    planeDesigns: state.game.planeDesigns[1]
-  }));
-};
-const PlaneDetail = props => {
-  const {
-    name,
-    planeDesigns
-  } = props;
-  if (!name) return null;
-  return /*#__PURE__*/React.createElement("div", {
-    style: {
-      // border: '1px solid black',
-      padding: 8
-      // backgroundColor: 'white',
-    }
-  }, /*#__PURE__*/React.createElement(PlaneDesignDisplay, {
-    planeDesign: planeDesigns[name]
-  }));
-};
-module.exports = LeftHandSideBar;
-},{"./PlaneDesignDisplay.react":6,"bens_ui_components":40,"react":55}],4:[function(require,module,exports){
-const React = require('react');
-const {
-  Button,
-  InfoCard,
-  Divider,
-  Plot,
-  plotReducer,
-  Modal,
-  Indicator,
-  Board,
-  SpriteSheet,
-  TextField,
-  Slider,
-  Checkbox,
-  Canvas
-} = require('bens_ui_components');
-const {
-  useEffect,
-  useState,
-  useMemo
-} = React;
-const {
-  getCanvasSize
-} = require('../selectors/selectors');
-const Lobby = props => {
-  const {
-    dispatch,
-    state,
-    getState
-  } = props;
-  useEffect(() => {
-    let d = 0;
-    const radarInterval = setInterval(() => {
-      const canvas = document.getElementById("radar");
-      const ctx = canvas.getContext('2d');
-      const {
-        width,
-        height
-      } = getCanvasSize();
-      ctx.color = 'rgb(35,36,38)';
-      ctx.fillRect(0, 0, width, height);
-      ctx.strokeStyle = '#6ce989';
-      const radians = d * Math.PI / 180;
-      const x = width / 2;
-      const y = height / 2;
-      const lineLength = height / 2;
-      const endX = x + lineLength * Math.sin(radians);
-      const endY = y - lineLength * Math.cos(radians);
-      ctx.beginPath();
-      ctx.moveTo(x, y);
-      ctx.lineTo(endX, endY);
-      ctx.stroke();
-      d = (d + 1) % 360;
-    }, 50);
-    return () => clearInterval(radarInterval);
-  }, []);
-  return /*#__PURE__*/React.createElement("div", {
-    style: {
-      width: '100%',
-      height: '100%',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      backgroundColor: 'rgb(35,36,38)'
-    }
-  }, /*#__PURE__*/React.createElement(Canvas, {
-    id: "radar",
-    style: {
-      borderRadius: '50%',
-      position: 'absolute'
-    },
-    width: getCanvasSize().width,
-    height: getCanvasSize().height
-  }), /*#__PURE__*/React.createElement(CreateGameCard, null));
-};
-const CreateGameCard = props => {
-  return /*#__PURE__*/React.createElement(InfoCard, {
-    style: {
-      width: window.innerHeight / 2,
-      height: window.innerHeight / 2,
-      border: '2px solid #6ce989',
-      borderRadius: '50%',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      position: 'absolute',
-      backgroundColor: 'rgba(0, 0, 0, 0)'
-    }
-  }, /*#__PURE__*/React.createElement(Button, {
-    label: "LAUNCH",
-    id: "PLAY",
-    style: {},
-    onClick: () => {
-      dispatch({
-        type: "START"
-      });
-    }
-  }));
-};
-module.exports = Lobby;
-},{"../selectors/selectors":15,"bens_ui_components":40,"react":55}],5:[function(require,module,exports){
-const React = require('react');
-const {
-  Button,
-  InfoCard,
-  Modal
-} = require('bens_ui_components');
-const Game = require('./Game.react');
-const Lobby = require('./Lobby.react');
-const {
-  useEnhancedReducer
-} = require('bens_ui_components');
-const {
-  rootReducer,
-  initState
-} = require('../reducers/rootReducer');
-const {
-  useEffect,
-  useState,
-  useMemo
-} = React;
-function Main(props) {
-  const [state, dispatch, getState] = useEnhancedReducer(rootReducer, initState());
-  window.getState = getState;
-  window.dispatch = dispatch;
-  let content = null;
-  if (state.screen === 'LOBBY') {
-    content = /*#__PURE__*/React.createElement(Lobby, {
-      dispatch: dispatch,
-      state: getState(),
-      getState: getState
-    });
-  } else if (state.screen === 'GAME') {
-    content = /*#__PURE__*/React.createElement(Game, {
-      dispatch: dispatch,
-      state: getState(),
-      getState: getState
-    });
-  }
-  return /*#__PURE__*/React.createElement(React.Fragment, null, content, state.modal);
-}
-module.exports = Main;
-},{"../reducers/rootReducer":12,"./Game.react":1,"./Lobby.react":4,"bens_ui_components":40,"react":55}],6:[function(require,module,exports){
-const React = require('react');
-const {
-  Button,
-  Divider
-} = require('bens_ui_components');
-const {
-  useEffect,
-  useState,
-  useMemo
-} = React;
-const PlaneDesignDisplay = props => {
-  const {
-    planeDesign
-  } = props;
-  return /*#__PURE__*/React.createElement("div", {
-    style: {}
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      textAlign: 'center'
-    }
-  }, /*#__PURE__*/React.createElement("b", null, planeDesign.name, " ", planeDesign.type)), /*#__PURE__*/React.createElement("div", {
-    style: {
-      width: '100%',
-      padding: 5
-    }
-  }, /*#__PURE__*/React.createElement("div", null, "Speed: Mach ", planeDesign.speed), /*#__PURE__*/React.createElement("div", null, "Range: ", planeDesign.fuel, " miles"), /*#__PURE__*/React.createElement("div", null, "Vision: ", planeDesign.vision, " miles"), /*#__PURE__*/React.createElement("div", null, "Ammo: ", planeDesign.ammo)));
-};
-module.exports = PlaneDesignDisplay;
-},{"bens_ui_components":40,"react":55}],7:[function(require,module,exports){
 const config = {
   msPerTick: 200,
   worldSize: {
@@ -591,12 +22,13 @@ const config = {
       'IL-28': 10,
       'TU-95': 15
     }
-  }
+  },
+  formationRadius: 40
 };
 module.exports = {
   config
 };
-},{}],8:[function(require,module,exports){
+},{}],2:[function(require,module,exports){
 const {
   getEntitiesByType
 } = require('../selectors/selectors');
@@ -618,7 +50,7 @@ const initAI = (getState, dispatch) => {
       config,
       game
     } = state;
-    const airbases = getEntitiesByType(game, aiID, 'AIRBASE');
+    const airbases = getEntitiesByType(game, 'AIRBASE', aiID);
     const airbase = oneOf(airbases);
     const planeDesign = game.planeDesigns[aiID][oneOf(Object.keys(game.planeDesigns[aiID]))];
     const targetPos = {
@@ -637,10 +69,10 @@ const initAI = (getState, dispatch) => {
 module.exports = {
   initAI
 };
-},{"../selectors/selectors":15,"bens_utils":47}],9:[function(require,module,exports){
+},{"../selectors/selectors":9,"bens_utils":47}],3:[function(require,module,exports){
 "use strict";
 
-var _Main = _interopRequireDefault(require("./UI/Main.react"));
+var _Main = _interopRequireDefault(require("./ui/Main.react"));
 var _react = _interopRequireDefault(require("react"));
 var _client = _interopRequireDefault(require("react-dom/client"));
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
@@ -650,7 +82,7 @@ function renderUI(root) {
 const root = _client.default.createRoot(document.getElementById('container'));
 renderUI(root);
 
-},{"./UI/Main.react":5,"react":55,"react-dom/client":51}],10:[function(require,module,exports){
+},{"./ui/Main.react":15,"react":55,"react-dom/client":51}],4:[function(require,module,exports){
 // @flow
 
 const {
@@ -751,7 +183,7 @@ const gameReducer = (game, action) => {
 module.exports = {
   gameReducer
 };
-},{"../state":16,"bens_utils":47}],11:[function(require,module,exports){
+},{"../state":10,"bens_utils":47}],5:[function(require,module,exports){
 const modalReducer = (state, action) => {
   switch (action.type) {
     case 'DISMISS_MODAL':
@@ -775,7 +207,7 @@ const modalReducer = (state, action) => {
 module.exports = {
   modalReducer
 };
-},{}],12:[function(require,module,exports){
+},{}],6:[function(require,module,exports){
 const React = require('react');
 const {
   gameReducer
@@ -783,7 +215,7 @@ const {
 const {
   modalReducer
 } = require('./modalReducer');
-const GameOverModal = require('../UI/GameOverModal.react');
+const GameOverModal = require('../ui/GameOverModal.react');
 const {
   mouseReducer,
   hotKeyReducer
@@ -899,7 +331,7 @@ module.exports = {
   rootReducer,
   initState
 };
-},{"../UI/GameOverModal.react":2,"../config":7,"../state":16,"./gameReducer":10,"./modalReducer":11,"./tick":13,"bens_ui_components":40,"bens_utils":47,"react":55}],13:[function(require,module,exports){
+},{"../config":1,"../state":10,"../ui/GameOverModal.react":12,"./gameReducer":4,"./modalReducer":5,"./tick":7,"bens_ui_components":40,"bens_utils":47,"react":55}],7:[function(require,module,exports){
 const React = require('react');
 const {
   makeVector,
@@ -914,12 +346,24 @@ const {
   getEntitiesByPlayer,
   getNearestAirbase,
   getOtherClientID,
-  getNumAirbases
+  getNumAirbases,
+  getEntitiesByType
 } = require('../selectors/selectors');
-const GameOverModal = require('../UI/GameOverModal.react');
+const {
+  makeExplosion
+} = require('../state');
+const GameOverModal = require('../ui/GameOverModal.react');
 const tick = state => {
   const game = state.game;
   game.time += 1;
+
+  // update explosions
+  for (const explosion of getEntitiesByType(game, 'EXPLOSION')) {
+    explosion.age++;
+    if (explosion.age > explosion.duration) {
+      delete game.entities[explosion.id];
+    }
+  }
 
   // move and fight
   for (const entityID in game.entities) {
@@ -972,9 +416,12 @@ const tick = state => {
         // kill the enemy
         // if enemy is targeting you too, then flip a coin whether you die instead
         if (entity.type == 'FIGHTER' && targetEntity.type == 'FIGHTER' && targetEntity.targetEnemy == entityID && Math.random() < 0.5) {
+          const explosion = makeExplosion(entity.position, entity.isBuilding ? 25 : 10, 1200 / state.config.msPerTick);
+          game.entities[explosion.id] = explosion;
           delete game.entities[entityID];
           game.stats[entity.clientID].fighters_shot_down++;
           targetEntity.kills++;
+          targetEntity.ammo--;
           if (targetEntity.kills == 5) {
             game.stats[targetEntity.clientID].fighter_aces++;
           }
@@ -982,31 +429,32 @@ const tick = state => {
         }
         let didKill = false;
         if (targetEntity.type == 'AIRBASE') {
-          delete game.entities[targetEntity.id];
           game.stats[targetEntity.clientID].airbases_destroyed++;
-          if (getNumAirbases(game, targetEntity.clientID) == 0) {
-            return doGameOver(state, entity.clientID);
-          }
+          didKill = true;
         } else if (targetEntity.type == 'FIGHTER') {
-          delete game.entities[targetEntity.id];
           game.stats[targetEntity.clientID].fighters_shot_down++;
           didKill = true;
         } else if (targetEntity.type == 'BOMBER') {
-          delete game.entities[targetEntity.id];
           game.stats[targetEntity.clientID].bombers_shot_down++;
           didKill = true;
         } else if (targetEntity.type == 'RECON') {
           // update stats based on RECON
-          delete game.entities[targetEntity.id];
           game.stats[targetEntity.clientID].recons_shot_down++;
           didKill = true;
         }
+
+        // kill target, compute aces, ammo
         if (didKill) {
-          // compute aces, ammo
           entity.ammo--;
           entity.kills++;
           if (entity.kills == 5) {
             game.stats[entity.clientID].fighter_aces++;
+          }
+          const explosion = makeExplosion(targetEntity.position, targetEntity.isBuilding ? 25 : 10, 1200 / state.config.msPerTick);
+          game.entities[explosion.id] = explosion;
+          delete game.entities[targetEntity.id];
+          if (getNumAirbases(game, targetEntity.clientID) == 0) {
+            return doGameOver(state, entity.clientID);
           }
         }
       } else {
@@ -1109,7 +557,7 @@ module.exports = {
   tick,
   doGameOver
 };
-},{"../UI/GameOverModal.react":2,"../selectors/selectors":15,"bens_utils":47,"react":55}],14:[function(require,module,exports){
+},{"../selectors/selectors":9,"../state":10,"../ui/GameOverModal.react":12,"bens_utils":47,"react":55}],8:[function(require,module,exports){
 const {
   subtract,
   vectorTheta
@@ -1141,8 +589,20 @@ const render = state => {
     ctx.closePath();
     ctx.fill();
   }
-  for (const entityID in game.visibleEntities) {
+  let entitiesToRender = game.visibleEntities;
+  if (game.showEnemies) {
+    entitiesToRender = game.entities;
+  }
+  for (const entityID in entitiesToRender) {
     const entity = game.entities[entityID];
+    if (entity.type == 'EXPLOSION') {
+      ctx.fillStyle = "orange";
+      ctx.beginPath();
+      ctx.arc(entity.position.x, entity.position.y, entity.maxRadius * entity.age / entity.duration, 0, 2 * Math.PI);
+      ctx.closePath();
+      ctx.fill();
+      continue;
+    }
     ctx.fillStyle = "blue";
     if (entity.clientID != state.clientID) {
       ctx.fillStyle = "red";
@@ -1189,7 +649,7 @@ const render = state => {
     if (entity.ammo == 0 && entity.type != 'RECON') {
       ctx.strokeStyle = 'red';
     }
-    if (game.selectedIDs.includes(entityID) || entity.ammo == 0 && entity.type != 'RECON') {
+    if (game.selectedIDs.includes(entityID) || entity.ammo == 0 && entity.type != 'RECON' && entity.clientID == 1) {
       // selection outline
       ctx.lineWidth = 2;
       ctx.beginPath();
@@ -1256,7 +716,7 @@ const render = state => {
         ctx.closePath();
         ctx.stroke();
       }
-    } else if (entity.targetPos != null && entity.clientID == state.clientID
+    } else if (entity.targetPos != null && (entity.clientID == state.clientID || game.showEnemyFlightPaths)
     // && game.selectedIDs.includes(entityID)
     ) {
       ctx.strokeStyle = "white";
@@ -1288,7 +748,7 @@ const render = state => {
 module.exports = {
   render
 };
-},{"bens_utils":47}],15:[function(require,module,exports){
+},{"bens_utils":47}],9:[function(require,module,exports){
 const {
   dist
 } = require('bens_utils').vectors;
@@ -1330,11 +790,11 @@ const getOtherClientID = clientID => {
 const isHost = clientID => {
   return clientID == 1;
 };
-const getEntitiesByType = (game, clientID, type) => {
+const getEntitiesByType = (game, type, clientID) => {
   const entities = [];
   for (const entityID in game.entities) {
     const entity = game.entities[entityID];
-    if (entity.clientID == clientID && entity.type == type) {
+    if ((entity.clientID == clientID || !clientID) && entity.type == type) {
       entities.push(entity);
     }
   }
@@ -1369,7 +829,7 @@ module.exports = {
   normalizePos,
   getCanvasSize
 };
-},{"bens_utils":47}],16:[function(require,module,exports){
+},{"bens_utils":47}],10:[function(require,module,exports){
 const {
   randomIn,
   normalIn
@@ -1396,6 +856,11 @@ const initGameState = (clientIDs, config) => {
     clickMode: 'LAUNCH',
     launchName: 'U-2',
     showStats: true,
+    showEnemies: false,
+    // for debugging
+    showEnemyFlightPaths: false,
+    // for debugging
+
     planeDesigns: {
       1: {
         'U-2': {
@@ -1547,12 +1012,638 @@ const makePlane = (clientID, position, type, targetPos, parameters) => {
     kills: 0
   };
 };
+const makeExplosion = (position, maxRadius, duration) => {
+  return {
+    id: nextID++,
+    type: 'EXPLOSION',
+    duration,
+    age: 0,
+    position,
+    maxRadius,
+    clientID: 2,
+    hasBeenDiscovered: true
+  };
+};
 module.exports = {
   initGameState,
   makeAirbase,
-  makePlane
+  makePlane,
+  makeExplosion
 };
-},{"bens_utils":47}],17:[function(require,module,exports){
+},{"bens_utils":47}],11:[function(require,module,exports){
+const React = require('react');
+const {
+  Canvas,
+  useMouseHandler,
+  useHotKeyHandler
+} = require('bens_ui_components');
+const {
+  render
+} = require('../render');
+const {
+  useState,
+  useMemo,
+  useEffect,
+  useReducer
+} = React;
+const {
+  initAI
+} = require('../daemons/aiControl');
+const {
+  dist,
+  subtract,
+  add
+} = require('bens_utils').vectors;
+const LeftHandSideBar = require('./LeftHandSideBar.react');
+const {
+  normalizePos,
+  getCanvasSize
+} = require('../selectors/selectors');
+function Game(props) {
+  const {
+    state,
+    dispatch,
+    getState
+  } = props;
+  const game = state.game;
+  useEffect(() => {
+    initAI(getState, dispatch);
+  }, []);
+
+  // rendering
+  useEffect(() => {
+    render(state);
+  }, [game.entities, game.selectedIDs, game.marquee]);
+
+  // mouse
+  useMouseHandler("canvas", {
+    dispatch,
+    getState
+  }, {
+    leftDown: (state, dispatch, p) => {
+      const pos = normalizePos(p, state.game.worldSize, getCanvasSize());
+      dispatch({
+        type: 'SET',
+        marquee: {
+          ...pos,
+          width: 0,
+          height: 0
+        }
+      });
+    },
+    mouseMove: (state, dispatch, p) => {
+      var _state$mouse;
+      const pos = normalizePos(p, state.game.worldSize, getCanvasSize());
+      if (!(state !== null && state !== void 0 && (_state$mouse = state.mouse) !== null && _state$mouse !== void 0 && _state$mouse.isLeftDown)) return;
+      dispatch({
+        type: 'SET',
+        marquee: {
+          ...state.game.marquee,
+          width: pos.x - state.game.marquee.x,
+          height: pos.y - state.game.marquee.y
+        }
+      });
+    },
+    leftUp: (state, dispatch, p) => {
+      const pos = normalizePos(p, state.game.worldSize, getCanvasSize());
+      let square = {
+        ...state.game.marquee
+      };
+      if (square.width < 0) {
+        square.x += square.width;
+        square.width *= -1;
+      }
+      if (square.height < 0) {
+        square.y += square.height;
+        square.height *= -1;
+      }
+      dispatch({
+        type: 'SELECT_ENTITIES',
+        square
+      });
+      dispatch({
+        type: 'SET',
+        marquee: null
+      });
+    },
+    rightDown: (state, dispatch, p) => {
+      const pos = normalizePos(p, state.game.worldSize, getCanvasSize());
+      const leadPlaneID = state.game.selectedIDs[0];
+      for (const entityID of state.game.selectedIDs) {
+        const entity = state.game.entities[entityID];
+        if (entity.type == 'AIRBASE' && state.game.clickMode == 'LAUNCH') {
+          dispatch({
+            type: 'LAUNCH_PLANE',
+            targetPos: pos,
+            airbaseID: entityID,
+            name: state.game.launchName,
+            clientID: state.game.clientID
+          });
+        } else {
+          const leadPlane = state.game.entities[leadPlaneID];
+          let adjustedPos = pos;
+          if (dist(entity.position, leadPlane.position) < state.config.formationRadius) {
+            const diff = subtract(leadPlane.position, entity.position);
+            adjustedPos = subtract(pos, diff);
+          }
+          dispatch({
+            type: 'SET_TARGET',
+            targetPos: adjustedPos,
+            entityID
+          });
+        }
+      }
+    }
+  });
+
+  // hotKeys
+  useHotKeyHandler({
+    dispatch,
+    getState: () => getState().game.hotKeys
+  });
+  useEffect(() => {
+    const planeNames = Object.keys(game.planeDesigns[state.clientID]);
+    for (let i = 0; i < planeNames.length; i++) {
+      const name = planeNames[i];
+      dispatch({
+        type: 'SET_HOTKEY',
+        key: "" + (i + 1),
+        press: 'onKeyDown',
+        fn: () => {
+          dispatch({
+            type: 'SET',
+            launchName: name
+          });
+          dispatch({
+            type: 'SET',
+            clickMode: 'LAUNCH'
+          });
+        }
+      });
+    }
+  }, []);
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      width: '100%',
+      height: '100%',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: 'rgb(35,36,38)'
+    }
+  }, /*#__PURE__*/React.createElement("img", {
+    style: {
+      position: 'absolute'
+    },
+    src: "./img/polar_world_map_2.png",
+    width: getCanvasSize().width,
+    height: getCanvasSize().height
+  }), /*#__PURE__*/React.createElement(Canvas, {
+    style: {
+      opacity: 0.7,
+      borderRadius: '49%'
+    },
+    view: game.worldSize,
+    onResize: (width, height) => {
+      dispatch({
+        type: 'SET',
+        canvasSize: {
+          width,
+          height
+        }
+      });
+    },
+    width: getCanvasSize().width,
+    height: getCanvasSize().height
+  }), /*#__PURE__*/React.createElement(LeftHandSideBar, {
+    state: state,
+    dispatch: dispatch
+  }));
+}
+module.exports = Game;
+},{"../daemons/aiControl":2,"../render":8,"../selectors/selectors":9,"./LeftHandSideBar.react":13,"bens_ui_components":40,"bens_utils":47,"react":55}],12:[function(require,module,exports){
+const React = require('react');
+const {
+  Modal,
+  Button
+} = require('bens_ui_components');
+const {
+  useEffect,
+  useState,
+  useMemo
+} = React;
+const GameOverModal = props => {
+  const {
+    winner,
+    stats
+  } = props;
+  const state = getState(); // HACK this comes from window;
+
+  let title = winner == state.clientID ? 'You Win!' : 'You Lose!';
+  let body = winner == state.clientID ? "You destroyed the enemy airbases" : "Your airbases were destroyed";
+  let otherClientID = null;
+  for (const id in stats) {
+    if (id != state.clientID) otherClientID = id;
+  }
+  body = /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", null, body), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      flexDirection: 'row',
+      gap: 70
+    }
+  }, /*#__PURE__*/React.createElement(PlayerStats, {
+    clientID: state.clientID,
+    otherID: otherClientID,
+    isYou: true,
+    stats: stats
+  }), /*#__PURE__*/React.createElement(PlayerStats, {
+    clientID: otherClientID,
+    otherID: state.clientID,
+    isYou: false,
+    stats: stats
+  })));
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      position: 'absolute',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      width: '100%',
+      height: '100%',
+      top: 0,
+      left: 0,
+      zIndex: 10
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      textAlign: 'center',
+      backgroundColor: 'rgb(34,36,38)',
+      color: '#6ce989',
+      padding: 15,
+      width: 650
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: '1.2em'
+    }
+  }, /*#__PURE__*/React.createElement("b", null, title)), body, /*#__PURE__*/React.createElement(Button, {
+    label: "Back to Menu",
+    id: "BACK",
+    style: {
+      marginTop: '12px'
+    },
+    onClick: () => {
+      dispatch({
+        type: 'DISMISS_MODAL'
+      });
+      dispatch({
+        type: 'SET_SCREEN',
+        screen: 'LOBBY'
+      });
+    }
+  })));
+};
+const PlayerStats = props => {
+  const {
+    isYou,
+    stats,
+    otherID,
+    clientID
+  } = props;
+  return /*#__PURE__*/React.createElement("div", {
+    style: {}
+  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("b", null, isYou ? 'You' : 'Opponent')), /*#__PURE__*/React.createElement("div", null, "Fighter sorties flown: ", stats[clientID].fighter_sorties), /*#__PURE__*/React.createElement("div", null, "Bomber sorties flown: ", stats[clientID].bomber_sorties), /*#__PURE__*/React.createElement("div", null, "Enemy fighters shot down: ", stats[otherID].fighters_shot_down), /*#__PURE__*/React.createElement("div", null, "Enemy bombers shot down: ", stats[otherID].bombers_shot_down), /*#__PURE__*/React.createElement("div", null, "Fighter aces: ", stats[clientID].fighter_aces), /*#__PURE__*/React.createElement("div", null, "Planes lost to no fuel: ", stats[clientID].planes_no_fuel), /*#__PURE__*/React.createElement("div", null, "Enemy airbases destroyed: ", stats[otherID].airbases_destroyed));
+};
+module.exports = GameOverModal;
+},{"bens_ui_components":40,"react":55}],13:[function(require,module,exports){
+const React = require('react');
+const {
+  Button,
+  InfoCard,
+  Divider,
+  Plot,
+  plotReducer,
+  Canvas,
+  Modal,
+  Indicator,
+  useMouseHandler,
+  useHotKeyHandler,
+  useEnhancedReducer
+} = require('bens_ui_components');
+const PlaneDesignDisplay = require('./PlaneDesignDisplay.react');
+const {
+  useEffect,
+  useState,
+  useMemo
+} = React;
+const LeftHandSideBar = props => {
+  const {
+    state,
+    dispatch
+  } = props;
+  const {
+    game
+  } = state;
+
+  // selectionCard
+  let selectionContent = null;
+  let shouldShowPlaneDetail = null;
+  const planeNames = Object.keys(game.planeDesigns[state.clientID]);
+  if (game.selectedIDs.length > 0) {
+    const selections = {
+      'AIRBASE': 0
+    };
+    for (const name of planeNames) {
+      selections[name] = 0;
+    }
+    for (const entityID of game.selectedIDs) {
+      const entity = game.entities[entityID];
+      if (entity) {
+        selections[entity.name] += 1;
+      }
+    }
+    const planesSelected = [];
+    for (const name in selections) {
+      if (selections[name] > 0) {
+        planesSelected.push( /*#__PURE__*/React.createElement("div", {
+          key: "plane_" + name
+        }, name, ": ", selections[name]));
+      }
+    }
+    if (planesSelected.length > 0) {
+      selectionContent = /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+        style: {
+          textAlign: 'center'
+        }
+      }, /*#__PURE__*/React.createElement("b", null, "Aircraft")), planesSelected);
+    }
+    if (selections.AIRBASE > 0) {
+      const airbase = game.entities[game.selectedIDs[0]];
+      const airbasePlanes = [];
+      for (const name in airbase.planes) {
+        airbasePlanes.push( /*#__PURE__*/React.createElement("div", {
+          key: "airbase_plane_" + name
+        }, name, ": ", airbase.planes[name]));
+      }
+      shouldShowPlaneDetail = state.game.launchName;
+      selectionContent = /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+        style: {
+          textAlign: 'center'
+        }
+      }, /*#__PURE__*/React.createElement("b", null, "Airbase")), state.game.clickMode == 'LAUNCH' ? /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", null, "Launch Type: "), /*#__PURE__*/React.createElement(RadioPicker, {
+        options: planeNames,
+        displayOptions: planeNames.map(name => {
+          const planeType = game.planeDesigns[state.clientID][name].type;
+          return `${name} (${planeType}): ${airbase.planes[name]}`;
+        }),
+        selected: state.game.launchName,
+        onChange: launchName => dispatch({
+          type: 'SET',
+          launchName
+        })
+      })) : null);
+    }
+  }
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      visibility: game.selectedIDs.length > 0 ? 'visible' : 'hidden',
+      position: 'absolute',
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 20,
+      top: 0,
+      left: 0,
+      margin: 4,
+      minWidth: 150,
+      color: '#6ce989'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: 8
+    }
+  }, selectionContent), /*#__PURE__*/React.createElement(PlaneDetail, {
+    name: shouldShowPlaneDetail,
+    planeDesigns: state.game.planeDesigns[1]
+  }));
+};
+const PlaneDetail = props => {
+  const {
+    name,
+    planeDesigns
+  } = props;
+  if (!name) return null;
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: 8
+    }
+  }, /*#__PURE__*/React.createElement(PlaneDesignDisplay, {
+    planeDesign: planeDesigns[name]
+  }));
+};
+const RadioPicker = props => {
+  const {
+    options,
+    displayOptions,
+    selected,
+    onChange
+  } = props;
+  const optionToggles = [];
+  for (let i = 0; i < options.length; i++) {
+    const option = options[i];
+    const displayOption = displayOptions && displayOptions[i] ? displayOptions[i] : option;
+    optionToggles.push( /*#__PURE__*/React.createElement("div", {
+      key: 'radioOption_' + option,
+      style: {
+        display: 'flex',
+        width: '100%',
+        justifyContent: 'space-between'
+      }
+    }, displayOption, /*#__PURE__*/React.createElement("input", {
+      type: "radio",
+      className: "radioCheckbox",
+      value: displayOption,
+      checked: option === selected,
+      onChange: () => onChange(option)
+    })));
+  }
+  return /*#__PURE__*/React.createElement("div", {
+    style: {}
+  }, optionToggles);
+};
+module.exports = LeftHandSideBar;
+},{"./PlaneDesignDisplay.react":16,"bens_ui_components":40,"react":55}],14:[function(require,module,exports){
+const React = require('react');
+const {
+  Button,
+  InfoCard,
+  Divider,
+  Plot,
+  plotReducer,
+  Modal,
+  Indicator,
+  Board,
+  SpriteSheet,
+  TextField,
+  Slider,
+  Checkbox,
+  Canvas
+} = require('bens_ui_components');
+const {
+  useEffect,
+  useState,
+  useMemo
+} = React;
+const {
+  getCanvasSize
+} = require('../selectors/selectors');
+const Lobby = props => {
+  const {
+    dispatch,
+    state,
+    getState
+  } = props;
+  useEffect(() => {
+    let d = 0;
+    const radarInterval = setInterval(() => {
+      const canvas = document.getElementById("radar");
+      const ctx = canvas.getContext('2d');
+      const {
+        width,
+        height
+      } = getCanvasSize();
+      ctx.color = 'rgb(35,36,38)';
+      ctx.fillRect(0, 0, width, height);
+      ctx.strokeStyle = '#6ce989';
+      const radians = d * Math.PI / 180;
+      const x = width / 2;
+      const y = height / 2;
+      const lineLength = height / 2;
+      const endX = x + lineLength * Math.sin(radians);
+      const endY = y - lineLength * Math.cos(radians);
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      ctx.lineTo(endX, endY);
+      ctx.stroke();
+      d = (d + 1) % 360;
+    }, 50);
+    return () => clearInterval(radarInterval);
+  }, []);
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      width: '100%',
+      height: '100%',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: 'rgb(35,36,38)'
+    }
+  }, /*#__PURE__*/React.createElement(Canvas, {
+    id: "radar",
+    style: {
+      borderRadius: '50%',
+      position: 'absolute'
+    },
+    width: getCanvasSize().width,
+    height: getCanvasSize().height
+  }), /*#__PURE__*/React.createElement(CreateGameCard, null));
+};
+const CreateGameCard = props => {
+  return /*#__PURE__*/React.createElement(InfoCard, {
+    style: {
+      width: window.innerHeight / 2,
+      height: window.innerHeight / 2,
+      border: '2px solid #6ce989',
+      borderRadius: '50%',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      position: 'absolute',
+      backgroundColor: 'rgba(0, 0, 0, 0)'
+    }
+  }, /*#__PURE__*/React.createElement(Button, {
+    label: "LAUNCH",
+    id: "PLAY",
+    style: {},
+    onClick: () => {
+      dispatch({
+        type: "START"
+      });
+    }
+  }));
+};
+module.exports = Lobby;
+},{"../selectors/selectors":9,"bens_ui_components":40,"react":55}],15:[function(require,module,exports){
+const React = require('react');
+const {
+  Button,
+  InfoCard,
+  Modal
+} = require('bens_ui_components');
+const Game = require('./Game.react');
+const Lobby = require('./Lobby.react');
+const {
+  useEnhancedReducer
+} = require('bens_ui_components');
+const {
+  rootReducer,
+  initState
+} = require('../reducers/rootReducer');
+const {
+  useEffect,
+  useState,
+  useMemo
+} = React;
+function Main(props) {
+  const [state, dispatch, getState] = useEnhancedReducer(rootReducer, initState());
+  window.getState = getState;
+  window.dispatch = dispatch;
+  let content = null;
+  if (state.screen === 'LOBBY') {
+    content = /*#__PURE__*/React.createElement(Lobby, {
+      dispatch: dispatch,
+      state: getState(),
+      getState: getState
+    });
+  } else if (state.screen === 'GAME') {
+    content = /*#__PURE__*/React.createElement(Game, {
+      dispatch: dispatch,
+      state: getState(),
+      getState: getState
+    });
+  }
+  return /*#__PURE__*/React.createElement(React.Fragment, null, content, state.modal);
+}
+module.exports = Main;
+},{"../reducers/rootReducer":6,"./Game.react":11,"./Lobby.react":14,"bens_ui_components":40,"react":55}],16:[function(require,module,exports){
+const React = require('react');
+const {
+  Button,
+  Divider
+} = require('bens_ui_components');
+const {
+  useEffect,
+  useState,
+  useMemo
+} = React;
+const PlaneDesignDisplay = props => {
+  const {
+    planeDesign
+  } = props;
+  return /*#__PURE__*/React.createElement("div", {
+    style: {}
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      textAlign: 'center'
+    }
+  }, /*#__PURE__*/React.createElement("b", null, planeDesign.name, " ", planeDesign.type)), /*#__PURE__*/React.createElement("div", {
+    style: {
+      width: '100%',
+      padding: 5
+    }
+  }, /*#__PURE__*/React.createElement("div", null, "Speed: mach ", planeDesign.speed), /*#__PURE__*/React.createElement("div", null, "Range: ", planeDesign.fuel, " miles"), /*#__PURE__*/React.createElement("div", null, "Vision: ", planeDesign.vision, " miles"), /*#__PURE__*/React.createElement("div", null, "Ammo: ", planeDesign.ammo)));
+};
+module.exports = PlaneDesignDisplay;
+},{"bens_ui_components":40,"react":55}],17:[function(require,module,exports){
 const React = require('react');
 const Button = require('./Button.react');
 const {
@@ -13338,4 +13429,4 @@ exports.clearImmediate = typeof clearImmediate === "function" ? clearImmediate :
   delete immediateIds[id];
 };
 }).call(this)}).call(this,require("timers").setImmediate,require("timers").clearImmediate)
-},{"process/browser.js":48,"timers":59}]},{},[9]);
+},{"process/browser.js":48,"timers":59}]},{},[3]);

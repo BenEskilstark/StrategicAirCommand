@@ -1,17 +1,13 @@
 const React = require('react');
-const {Modal} = require('bens_ui_components');
+const {Modal, Button} = require('bens_ui_components');
 const {useEffect, useState, useMemo} = React;
 
 const GameOverModal = (props) => {
-  const {winner, disconnect, stats} = props;
+  const {winner, stats} = props;
   const state = getState(); // HACK this comes from window;
 
   let title = winner == state.clientID ? 'You Win!' : 'You Lose!';
-  let body = winner == state.clientID ? "You destroyed the enemy airbase" : "Your airbase was destroyed";
-  if (disconnect) {
-    title = "Opponent Disconnected";
-    body = "The other player has closed the tab and disconnected. So I guess you win by forfeit...";
-  }
+  let body = winner == state.clientID ? "You destroyed the enemy airbases" : "Your airbases were destroyed";
 
   let otherClientID = null;
   for (const id in stats) {
@@ -37,20 +33,49 @@ const GameOverModal = (props) => {
   );
 
   return (
-    <Modal
-      title={title}
-      body={body}
+    <div
       style={{
-        padding: 15,
-        width: 650,
+        position: 'absolute',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        width: '100%',
+        height: '100%',
+        top: 0,
+        left: 0,
+        zIndex: 10,
       }}
-      buttons={[{
-        label: 'Back to Menu', onClick: () => {
-          dispatch({type: 'DISMISS_MODAL'});
-          dispatch({type: 'SET_SCREEN', screen: 'LOBBY'});
-        }
-      }]}
-    />
+    >
+      <div
+        style={{
+          textAlign: 'center',
+          backgroundColor: 'rgb(34,36,38)',
+          color: '#6ce989',
+          padding: 15,
+          width: 650,
+        }}
+      >
+        <div
+          style={{
+            fontSize: '1.2em',
+          }}
+        >
+          <b>{title}</b>
+        </div>
+        {body}
+        <Button
+          label="BACK TO MENU"
+          id="BACK"
+          style={{
+            marginTop: '12px',
+          }}
+          onClick={() => {
+            dispatch({type: 'DISMISS_MODAL'});
+            dispatch({type: 'SET_SCREEN', screen: 'LOBBY'});
+          }}
+        />
+      </div>
+    </div>
   );
 };
 

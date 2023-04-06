@@ -13,6 +13,8 @@ const config = {
       'MIG-19': 12, 'MIG-21': 6, 'IL-28': 10, 'TU-95': 15,
     },
   },
+
+  formationRadius: 40,
 }
 
 module.exports = {

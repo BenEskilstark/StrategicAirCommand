@@ -1,7 +1,7 @@
 const React = require('react');
 const {gameReducer} = require('./gameReducer');
 const {modalReducer} = require('./modalReducer');
-const GameOverModal = require('../UI/GameOverModal.react');
+const GameOverModal = require('../ui/GameOverModal.react');
 const {mouseReducer, hotKeyReducer} = require('bens_ui_components');
 const {config} = require('../config');
 const {deepCopy} = require('bens_utils').helpers;

@@ -29,8 +29,28 @@ const render = (state) => {
     ctx.fill();
   }
 
-  for (const entityID in game.visibleEntities) {
+  let entitiesToRender = game.visibleEntities;
+  if (game.showEnemies) {
+    entitiesToRender = game.entities;
+  }
+
+  for (const entityID in entitiesToRender) {
     const entity = game.entities[entityID];
+
+    if (entity.type == 'EXPLOSION') {
+      ctx.fillStyle = "orange";
+      ctx.beginPath();
+      ctx.arc(
+        entity.position.x, entity.position.y,
+        entity.maxRadius * entity.age / entity.duration,
+        0, 2*Math.PI,
+      );
+      ctx.closePath();
+      ctx.fill();
+      continue;
+    }
+
+
     ctx.fillStyle = "blue";
     if (entity.clientID != state.clientID) {
       ctx.fillStyle = "red";
@@ -79,7 +99,10 @@ const render = (state) => {
     if (entity.ammo == 0 && entity.type != 'RECON') {
       ctx.strokeStyle = 'red';
     }
-    if (game.selectedIDs.includes(entityID) || (entity.ammo == 0 && entity.type != 'RECON')) {
+    if (
+      game.selectedIDs.includes(entityID) ||
+      (entity.ammo == 0 && entity.type != 'RECON' && entity.clientID == 1)
+    ) {
       // selection outline
       ctx.lineWidth = 2;
       ctx.beginPath();
@@ -150,7 +173,7 @@ const render = (state) => {
       }
     } else if (
       entity.targetPos != null &&
-      entity.clientID == state.clientID
+      (entity.clientID == state.clientID || game.showEnemyFlightPaths)
       // && game.selectedIDs.includes(entityID)
     ) {
       ctx.strokeStyle = "white";
