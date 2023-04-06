@@ -2,7 +2,7 @@ const React = require('react');
 const {
   Button, InfoCard, Divider,
   Plot, plotReducer,
-  Canvas, RadioPicker,
+  Canvas,
   Modal, Indicator,
   useMouseHandler,
   useHotKeyHandler,
@@ -94,9 +94,7 @@ const LeftHandSideBar = (props) => {
     >
       <div
         style={{
-          // border: '1px solid black',
           padding: 8,
-          // backgroundColor: 'white',
         }}
       >
         {selectionContent}
@@ -115,9 +113,7 @@ const PlaneDetail = (props) => {
   return (
     <div
       style={{
-        // border: '1px solid black',
         padding: 8,
-        // backgroundColor: 'white',
     }}
     >
       <PlaneDesignDisplay planeDesign={planeDesigns[name]} />
