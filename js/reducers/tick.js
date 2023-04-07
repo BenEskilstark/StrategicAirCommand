@@ -162,7 +162,12 @@ const tick = (state) => {
           if (id == 1) visibleEntities[otherID] = other;
         }
         if (dist(entity.position, other.position) <= entity.vision) {
-          if (id == 1) visibleEntities[otherID] = other;
+          if (id == 1) {
+            visibleEntities[otherID] = other;
+            if (other.isPlane) {
+              game.planeTypesSeen[other.name] = true;
+            }
+          }
           if (other.isBuilding) {
             other.hasBeenDiscovered = true;
           }

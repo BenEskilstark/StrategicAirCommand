@@ -9,6 +9,7 @@ const {useState, useMemo, useEffect, useReducer} = React;
 const {initAI} = require('../daemons/aiControl');
 const {dist, subtract, add} = require('bens_utils').vectors;
 const LeftHandSideBar = require('./LeftHandSideBar.react');
+const RightHandSideBar = require('./RightHandSideBar.react');
 const {normalizePos, getCanvasSize} = require('../selectors/selectors');
 
 
@@ -126,6 +127,7 @@ function Game(props) {
         height={getCanvasSize().height}
       />
       <LeftHandSideBar state={state} dispatch={dispatch} />
+      <RightHandSideBar state={state} dispatch={dispatch} />
     </div>
   );
 }

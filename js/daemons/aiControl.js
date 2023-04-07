@@ -5,7 +5,7 @@ const {oneOf, randomIn, normalIn} = require('bens_utils').stochastic;
 const aiID = 2;
 
 const initAI = (getState, dispatch) => {
-  const launchInterval = 400;
+  const launchInterval = 800;
 
   const ai = setInterval(() => {
     const state = getState();
@@ -18,13 +18,27 @@ const initAI = (getState, dispatch) => {
     const airbases = getEntitiesByType(game, 'AIRBASE', aiID);
     const airbase = oneOf(airbases);
 
-    const planeDesign = game.planeDesigns[aiID][oneOf(Object.keys(game.planeDesigns[aiID]))];
+    // prefer to launch IL's
+    let planeDesign = game.planeDesigns[aiID][oneOf(Object.keys(game.planeDesigns[aiID]))];
+    let range = planeDesign.fuel / 2;
+    let maxRangeDiv = 1;
+    let yFn = normalIn;
+    if (airbase.planes['IL-28'] > 0) {
+      planeDesign = game.planeDesigns[aiID]['IL-28'];
+      range = airbase.position.x;
+      maxRangeDiv = 2;
+    }
+    if (planeDesign.name == 'MIG-21') {
+      yFn = randomIn;
+      range = planeDesign.fuel / 4;
+    }
+
     const targetPos = {
       x: normalIn(
-        airbase.position.x - planeDesign.fuel / 2,
-        airbase.position.x,
+        airbase.position.x - range,
+        airbase.position.x / maxRangeDiv,
       ),
-      y: normalIn(200, game.worldSize.height - 200),
+      y: yFn(100, game.worldSize.height - 100),
     };
 
     dispatch({

@@ -7,7 +7,7 @@ const config = {
   },
   numAirbases: {
     1: 3,
-    2: 10
+    2: 8
   },
   planes: {
     1: {
@@ -17,10 +17,11 @@ const config = {
       'F-106': 8
     },
     2: {
-      'MIG-19': 12,
-      'MIG-21': 6,
-      'IL-28': 10,
-      'TU-95': 15
+      'MIG-19': 8,
+      'MIG-21': 4,
+      'IL-28': 6,
+      'TU-95': 12,
+      'Yak-28': 4
     }
   },
   formationRadius: 40
@@ -39,7 +40,7 @@ const {
 } = require('bens_utils').stochastic;
 const aiID = 2;
 const initAI = (getState, dispatch) => {
-  const launchInterval = 400;
+  const launchInterval = 800;
   const ai = setInterval(() => {
     const state = getState();
     if (!state.game || !state.game.tickInterval) {
@@ -52,10 +53,24 @@ const initAI = (getState, dispatch) => {
     } = state;
     const airbases = getEntitiesByType(game, 'AIRBASE', aiID);
     const airbase = oneOf(airbases);
-    const planeDesign = game.planeDesigns[aiID][oneOf(Object.keys(game.planeDesigns[aiID]))];
+
+    // prefer to launch IL's
+    let planeDesign = game.planeDesigns[aiID][oneOf(Object.keys(game.planeDesigns[aiID]))];
+    let range = planeDesign.fuel / 2;
+    let maxRangeDiv = 1;
+    let yFn = normalIn;
+    if (airbase.planes['IL-28'] > 0) {
+      planeDesign = game.planeDesigns[aiID]['IL-28'];
+      range = airbase.position.x;
+      maxRangeDiv = 2;
+    }
+    if (planeDesign.name == 'MIG-21') {
+      yFn = randomIn;
+      range = planeDesign.fuel / 4;
+    }
     const targetPos = {
-      x: normalIn(airbase.position.x - planeDesign.fuel / 2, airbase.position.x),
-      y: normalIn(200, game.worldSize.height - 200)
+      x: normalIn(airbase.position.x - range, airbase.position.x / maxRangeDiv),
+      y: yFn(100, game.worldSize.height - 100)
     };
     dispatch({
       type: 'LAUNCH_PLANE',
@@ -69,7 +84,7 @@ const initAI = (getState, dispatch) => {
 module.exports = {
   initAI
 };
-},{"../selectors/selectors":9,"bens_utils":47}],3:[function(require,module,exports){
+},{"../selectors/selectors":9,"bens_utils":48}],3:[function(require,module,exports){
 "use strict";
 
 var _Main = _interopRequireDefault(require("./ui/Main.react"));
@@ -82,7 +97,7 @@ function renderUI(root) {
 const root = _client.default.createRoot(document.getElementById('container'));
 renderUI(root);
 
-},{"./ui/Main.react":15,"react":55,"react-dom/client":51}],4:[function(require,module,exports){
+},{"./ui/Main.react":15,"react":56,"react-dom/client":52}],4:[function(require,module,exports){
 // @flow
 
 const {
@@ -183,7 +198,7 @@ const gameReducer = (game, action) => {
 module.exports = {
   gameReducer
 };
-},{"../state":10,"bens_utils":47}],5:[function(require,module,exports){
+},{"../state":10,"bens_utils":48}],5:[function(require,module,exports){
 const modalReducer = (state, action) => {
   switch (action.type) {
     case 'DISMISS_MODAL':
@@ -331,7 +346,7 @@ module.exports = {
   rootReducer,
   initState
 };
-},{"../config":1,"../state":10,"../ui/GameOverModal.react":12,"./gameReducer":4,"./modalReducer":5,"./tick":7,"bens_ui_components":40,"bens_utils":47,"react":55}],7:[function(require,module,exports){
+},{"../config":1,"../state":10,"../ui/GameOverModal.react":12,"./gameReducer":4,"./modalReducer":5,"./tick":7,"bens_ui_components":41,"bens_utils":48,"react":56}],7:[function(require,module,exports){
 const React = require('react');
 const {
   makeVector,
@@ -491,7 +506,12 @@ const tick = state => {
           if (id == 1) visibleEntities[otherID] = other;
         }
         if (dist(entity.position, other.position) <= entity.vision) {
-          if (id == 1) visibleEntities[otherID] = other;
+          if (id == 1) {
+            visibleEntities[otherID] = other;
+            if (other.isPlane) {
+              game.planeTypesSeen[other.name] = true;
+            }
+          }
           if (other.isBuilding) {
             other.hasBeenDiscovered = true;
           }
@@ -557,7 +577,7 @@ module.exports = {
   tick,
   doGameOver
 };
-},{"../selectors/selectors":9,"../state":10,"../ui/GameOverModal.react":12,"bens_utils":47,"react":55}],8:[function(require,module,exports){
+},{"../selectors/selectors":9,"../state":10,"../ui/GameOverModal.react":12,"bens_utils":48,"react":56}],8:[function(require,module,exports){
 const {
   subtract,
   vectorTheta
@@ -748,7 +768,7 @@ const render = state => {
 module.exports = {
   render
 };
-},{"bens_utils":47}],9:[function(require,module,exports){
+},{"bens_utils":48}],9:[function(require,module,exports){
 const {
   dist
 } = require('bens_utils').vectors;
@@ -829,7 +849,7 @@ module.exports = {
   normalizePos,
   getCanvasSize
 };
-},{"bens_utils":47}],10:[function(require,module,exports){
+},{"bens_utils":48}],10:[function(require,module,exports){
 const {
   randomIn,
   normalIn
@@ -847,6 +867,7 @@ const initGameState = (clientIDs, config) => {
     },
     entities: {},
     visibleEntities: {},
+    planeTypesSeen: {},
     stats: {},
     fogLocations: [],
     selectedIDs: [],
@@ -905,13 +926,21 @@ const initGameState = (clientIDs, config) => {
           speed: 1.4,
           ammo: 1
         },
+        'Yak-28': {
+          name: 'Yak-28',
+          type: 'FIGHTER',
+          fuel: 1600,
+          vision: 40,
+          speed: 1.2,
+          ammo: 1
+        },
         'MIG-21': {
           name: 'MIG-21',
           type: 'FIGHTER',
-          fuel: 500,
+          fuel: 600,
           vision: 50,
           speed: 2,
-          ammo: 1
+          ammo: 2
         },
         'IL-28': {
           name: 'IL-28',
@@ -1030,7 +1059,7 @@ module.exports = {
   makePlane,
   makeExplosion
 };
-},{"bens_utils":47}],11:[function(require,module,exports){
+},{"bens_utils":48}],11:[function(require,module,exports){
 const React = require('react');
 const {
   Canvas,
@@ -1055,6 +1084,7 @@ const {
   add
 } = require('bens_utils').vectors;
 const LeftHandSideBar = require('./LeftHandSideBar.react');
+const RightHandSideBar = require('./RightHandSideBar.react');
 const {
   normalizePos,
   getCanvasSize
@@ -1218,10 +1248,13 @@ function Game(props) {
   }), /*#__PURE__*/React.createElement(LeftHandSideBar, {
     state: state,
     dispatch: dispatch
+  }), /*#__PURE__*/React.createElement(RightHandSideBar, {
+    state: state,
+    dispatch: dispatch
   }));
 }
 module.exports = Game;
-},{"../daemons/aiControl":2,"../render":8,"../selectors/selectors":9,"./LeftHandSideBar.react":13,"bens_ui_components":40,"bens_utils":47,"react":55}],12:[function(require,module,exports){
+},{"../daemons/aiControl":2,"../render":8,"../selectors/selectors":9,"./LeftHandSideBar.react":13,"./RightHandSideBar.react":17,"bens_ui_components":41,"bens_utils":48,"react":56}],12:[function(require,module,exports){
 const React = require('react');
 const {
   Modal,
@@ -1287,7 +1320,7 @@ const GameOverModal = props => {
       fontSize: '1.2em'
     }
   }, /*#__PURE__*/React.createElement("b", null, title)), body, /*#__PURE__*/React.createElement(Button, {
-    label: "Back to Menu",
+    label: "BACK TO MENU",
     id: "BACK",
     style: {
       marginTop: '12px'
@@ -1315,7 +1348,7 @@ const PlayerStats = props => {
   }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("b", null, isYou ? 'You' : 'Opponent')), /*#__PURE__*/React.createElement("div", null, "Fighter sorties flown: ", stats[clientID].fighter_sorties), /*#__PURE__*/React.createElement("div", null, "Bomber sorties flown: ", stats[clientID].bomber_sorties), /*#__PURE__*/React.createElement("div", null, "Enemy fighters shot down: ", stats[otherID].fighters_shot_down), /*#__PURE__*/React.createElement("div", null, "Enemy bombers shot down: ", stats[otherID].bombers_shot_down), /*#__PURE__*/React.createElement("div", null, "Fighter aces: ", stats[clientID].fighter_aces), /*#__PURE__*/React.createElement("div", null, "Planes lost to no fuel: ", stats[clientID].planes_no_fuel), /*#__PURE__*/React.createElement("div", null, "Enemy airbases destroyed: ", stats[otherID].airbases_destroyed));
 };
 module.exports = GameOverModal;
-},{"bens_ui_components":40,"react":55}],13:[function(require,module,exports){
+},{"bens_ui_components":41,"react":56}],13:[function(require,module,exports){
 const React = require('react');
 const {
   Button,
@@ -1471,7 +1504,7 @@ const RadioPicker = props => {
   }, optionToggles);
 };
 module.exports = LeftHandSideBar;
-},{"./PlaneDesignDisplay.react":16,"bens_ui_components":40,"react":55}],14:[function(require,module,exports){
+},{"./PlaneDesignDisplay.react":16,"bens_ui_components":41,"react":56}],14:[function(require,module,exports){
 const React = require('react');
 const {
   Button,
@@ -1572,7 +1605,7 @@ const CreateGameCard = props => {
   }));
 };
 module.exports = Lobby;
-},{"../selectors/selectors":9,"bens_ui_components":40,"react":55}],15:[function(require,module,exports){
+},{"../selectors/selectors":9,"bens_ui_components":41,"react":56}],15:[function(require,module,exports){
 const React = require('react');
 const {
   Button,
@@ -1614,7 +1647,7 @@ function Main(props) {
   return /*#__PURE__*/React.createElement(React.Fragment, null, content, state.modal);
 }
 module.exports = Main;
-},{"../reducers/rootReducer":6,"./Game.react":11,"./Lobby.react":14,"bens_ui_components":40,"react":55}],16:[function(require,module,exports){
+},{"../reducers/rootReducer":6,"./Game.react":11,"./Lobby.react":14,"bens_ui_components":41,"react":56}],16:[function(require,module,exports){
 const React = require('react');
 const {
   Button,
@@ -1643,7 +1676,50 @@ const PlaneDesignDisplay = props => {
   }, /*#__PURE__*/React.createElement("div", null, "Speed: mach ", planeDesign.speed), /*#__PURE__*/React.createElement("div", null, "Range: ", planeDesign.fuel, " miles"), /*#__PURE__*/React.createElement("div", null, "Vision: ", planeDesign.vision, " miles"), /*#__PURE__*/React.createElement("div", null, "Ammo: ", planeDesign.ammo)));
 };
 module.exports = PlaneDesignDisplay;
-},{"bens_ui_components":40,"react":55}],17:[function(require,module,exports){
+},{"bens_ui_components":41,"react":56}],17:[function(require,module,exports){
+const React = require('react');
+const PlaneDesignDisplay = require('./PlaneDesignDisplay.react');
+const {
+  useEffect,
+  useState,
+  useMemo
+} = React;
+const RightHandSideBar = props => {
+  const {
+    state,
+    dispatch
+  } = props;
+  const {
+    game
+  } = state;
+  const planeDetails = [];
+  for (const name in game.planeTypesSeen) {
+    planeDetails.push( /*#__PURE__*/React.createElement(PlaneDesignDisplay, {
+      key: "planeSeen_" + name,
+      planeDesign: game.planeDesigns[2][name]
+    }));
+  }
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      visibility: game.selectedIDs.length > 0 ? 'visible' : 'hidden',
+      position: 'absolute',
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 20,
+      top: 0,
+      left: window.innerWidth - 205,
+      margin: 4,
+      minWidth: 200,
+      color: '#6ce989'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: 8
+    }
+  }, planeDetails));
+};
+module.exports = RightHandSideBar;
+},{"./PlaneDesignDisplay.react":16,"react":56}],18:[function(require,module,exports){
 const React = require('react');
 const Button = require('./Button.react');
 const {
@@ -1716,7 +1792,7 @@ const AudioWidget = props => {
   }));
 };
 module.exports = AudioWidget;
-},{"./Button.react":19,"react":55}],18:[function(require,module,exports){
+},{"./Button.react":20,"react":56}],19:[function(require,module,exports){
 function _extends() { _extends = Object.assign ? Object.assign.bind() : function (target) { for (var i = 1; i < arguments.length; i++) { var source = arguments[i]; for (var key in source) { if (Object.prototype.hasOwnProperty.call(source, key)) { target[key] = source[key]; } } } return target; }; return _extends.apply(this, arguments); }
 const React = require('react');
 const CheckerBackground = require('./CheckerBackground.react.js');
@@ -1835,7 +1911,7 @@ const Piece = props => {
   }, props.sprite);
 };
 module.exports = Board;
-},{"./CheckerBackground.react.js":22,"./DragArea.react.js":24,"react":55}],19:[function(require,module,exports){
+},{"./CheckerBackground.react.js":23,"./DragArea.react.js":25,"react":56}],20:[function(require,module,exports){
 const React = require('react');
 const {
   useState,
@@ -1909,7 +1985,7 @@ function Button(props) {
   }, props.label);
 }
 module.exports = Button;
-},{"react":55}],20:[function(require,module,exports){
+},{"react":56}],21:[function(require,module,exports){
 const React = require('react');
 const {
   useResponsiveDimensions
@@ -1972,7 +2048,7 @@ function Canvas(props) {
   }));
 }
 module.exports = Canvas;
-},{"./hooks":38,"react":55}],21:[function(require,module,exports){
+},{"./hooks":39,"react":56}],22:[function(require,module,exports){
 const React = require('react');
 
 /**
@@ -2008,7 +2084,7 @@ function Checkbox(props) {
   }
 }
 module.exports = Checkbox;
-},{"react":55}],22:[function(require,module,exports){
+},{"react":56}],23:[function(require,module,exports){
 const React = require('react');
 
 /**
@@ -2056,7 +2132,7 @@ const CheckerBackground = props => {
   }, squares);
 };
 module.exports = CheckerBackground;
-},{"react":55}],23:[function(require,module,exports){
+},{"react":56}],24:[function(require,module,exports){
 const React = require('react');
 function Divider(props) {
   const {
@@ -2072,7 +2148,7 @@ function Divider(props) {
   });
 }
 module.exports = Divider;
-},{"react":55}],24:[function(require,module,exports){
+},{"react":56}],25:[function(require,module,exports){
 const React = require('react');
 const {
   useMouseHandler,
@@ -2332,7 +2408,7 @@ const clampToArea = (dragAreaID, pixel, style) => {
   };
 };
 module.exports = DragArea;
-},{"./hooks":38,"bens_utils":47,"react":55}],25:[function(require,module,exports){
+},{"./hooks":39,"bens_utils":48,"react":56}],26:[function(require,module,exports){
 const React = require('react');
 
 /**
@@ -2370,7 +2446,7 @@ const Dropdown = function (props) {
   }, optionTags);
 };
 module.exports = Dropdown;
-},{"react":55}],26:[function(require,module,exports){
+},{"react":56}],27:[function(require,module,exports){
 const React = require('react');
 const {
   useEffect,
@@ -2416,7 +2492,7 @@ const usePrevious = value => {
   return ref.current;
 };
 module.exports = Indicator;
-},{"react":55}],27:[function(require,module,exports){
+},{"react":56}],28:[function(require,module,exports){
 const React = require('react');
 const InfoCard = props => {
   const overrideStyle = props.style || {};
@@ -2440,7 +2516,7 @@ const InfoCard = props => {
   }, props.children);
 };
 module.exports = InfoCard;
-},{"react":55}],28:[function(require,module,exports){
+},{"react":56}],29:[function(require,module,exports){
 const React = require('react');
 const Button = require('./Button.react');
 const Divider = require('./Divider.react');
@@ -2533,7 +2609,7 @@ function Modal(props) {
   }, buttonHTML)));
 }
 module.exports = Modal;
-},{"./Button.react":19,"./Divider.react":23,"react":55}],29:[function(require,module,exports){
+},{"./Button.react":20,"./Divider.react":24,"react":56}],30:[function(require,module,exports){
 const React = require('react');
 const {
   useState,
@@ -2615,7 +2691,7 @@ const submitValue = (onChange, nextVal, onlyInt) => {
   }
 };
 module.exports = NumberField;
-},{"react":55}],30:[function(require,module,exports){
+},{"react":56}],31:[function(require,module,exports){
 function _extends() { _extends = Object.assign ? Object.assign.bind() : function (target) { for (var i = 1; i < arguments.length; i++) { var source = arguments[i]; for (var key in source) { if (Object.prototype.hasOwnProperty.call(source, key)) { target[key] = source[key]; } } } return target; }; return _extends.apply(this, arguments); }
 /**
  * See ~/Code/teaching/clusters for an example of how to use the plot
@@ -2903,7 +2979,7 @@ const PlotWatcher = props => {
   }));
 };
 module.exports = PlotWatcher;
-},{"./Button.react":19,"./Canvas.react":20,"react":55}],31:[function(require,module,exports){
+},{"./Button.react":20,"./Canvas.react":21,"react":56}],32:[function(require,module,exports){
 const React = require('react');
 const Button = require('./Button.react');
 const Modal = require('./Modal.react');
@@ -2986,7 +3062,7 @@ const quitGameModal = dispatch => {
   });
 };
 module.exports = QuitButton;
-},{"./Button.react":19,"./Modal.react":28,"bens_utils":47,"react":55}],32:[function(require,module,exports){
+},{"./Button.react":20,"./Modal.react":29,"bens_utils":48,"react":56}],33:[function(require,module,exports){
 const React = require('react');
 
 // props:
@@ -3019,7 +3095,7 @@ class RadioPicker extends React.Component {
   }
 }
 module.exports = RadioPicker;
-},{"react":55}],33:[function(require,module,exports){
+},{"react":56}],34:[function(require,module,exports){
 const React = require('react');
 const NumberField = require('./NumberField.react');
 const {
@@ -3096,7 +3172,7 @@ function Slider(props) {
   }), props.noOriginalValue ? null : "(" + originalValue + ")"));
 }
 module.exports = Slider;
-},{"./NumberField.react":29,"react":55}],34:[function(require,module,exports){
+},{"./NumberField.react":30,"react":56}],35:[function(require,module,exports){
 const React = require('react');
 
 /**
@@ -3140,7 +3216,7 @@ const SpriteSheet = props => {
   }));
 };
 module.exports = SpriteSheet;
-},{"react":55}],35:[function(require,module,exports){
+},{"react":56}],36:[function(require,module,exports){
 const React = require('react');
 const Button = require('./Button.react');
 const Dropdown = require('./Dropdown.react');
@@ -3327,7 +3403,7 @@ function Table(props) {
   }, props.hideNumRows ? null : /*#__PURE__*/React.createElement("span", null, "Total Rows: ", rows.length, " Rows Displayed: ", filteredRows.length), /*#__PURE__*/React.createElement("table", null, /*#__PURE__*/React.createElement("thead", null, /*#__PURE__*/React.createElement("tr", null, headers)), /*#__PURE__*/React.createElement("tbody", null, rowHTML)));
 }
 module.exports = Table;
-},{"./Button.react":19,"./Dropdown.react":25,"react":55}],36:[function(require,module,exports){
+},{"./Button.react":20,"./Dropdown.react":26,"react":56}],37:[function(require,module,exports){
 const React = require('react');
 
 /**
@@ -3375,7 +3451,7 @@ const TextArea = props => {
   });
 };
 module.exports = TextArea;
-},{"react":55}],37:[function(require,module,exports){
+},{"react":56}],38:[function(require,module,exports){
 const React = require('react');
 
 /**
@@ -3417,7 +3493,7 @@ const TextField = props => {
   });
 };
 module.exports = TextField;
-},{"react":55}],38:[function(require,module,exports){
+},{"react":56}],39:[function(require,module,exports){
 const React = require('react');
 const {
   throttle
@@ -3908,7 +3984,7 @@ module.exports = {
   useCompare,
   usePrevious
 };
-},{"bens_utils":47,"react":55}],39:[function(require,module,exports){
+},{"bens_utils":48,"react":56}],40:[function(require,module,exports){
 // type Point = {
 //   x: number,
 //   y: number,
@@ -3993,7 +4069,7 @@ const plotReducer = (state, action) => {
 module.exports = {
   plotReducer
 };
-},{}],40:[function(require,module,exports){
+},{}],41:[function(require,module,exports){
 
 // const React = require('react');
 // const ReactDOM = require('react-dom');
@@ -4028,7 +4104,7 @@ module.exports = {
 
 
 
-},{"./bin/AudioWidget.react.js":17,"./bin/Board.react.js":18,"./bin/Button.react.js":19,"./bin/Canvas.react.js":20,"./bin/Checkbox.react.js":21,"./bin/CheckerBackground.react.js":22,"./bin/Divider.react.js":23,"./bin/DragArea.react.js":24,"./bin/Dropdown.react.js":25,"./bin/Indicator.react.js":26,"./bin/InfoCard.react.js":27,"./bin/Modal.react.js":28,"./bin/NumberField.react.js":29,"./bin/Plot.react.js":30,"./bin/QuitButton.react.js":31,"./bin/RadioPicker.react.js":32,"./bin/Slider.react.js":33,"./bin/SpriteSheet.react.js":34,"./bin/Table.react.js":35,"./bin/TextArea.react.js":36,"./bin/TextField.react.js":37,"./bin/hooks.js":38,"./bin/plotReducer.js":39}],41:[function(require,module,exports){
+},{"./bin/AudioWidget.react.js":18,"./bin/Board.react.js":19,"./bin/Button.react.js":20,"./bin/Canvas.react.js":21,"./bin/Checkbox.react.js":22,"./bin/CheckerBackground.react.js":23,"./bin/Divider.react.js":24,"./bin/DragArea.react.js":25,"./bin/Dropdown.react.js":26,"./bin/Indicator.react.js":27,"./bin/InfoCard.react.js":28,"./bin/Modal.react.js":29,"./bin/NumberField.react.js":30,"./bin/Plot.react.js":31,"./bin/QuitButton.react.js":32,"./bin/RadioPicker.react.js":33,"./bin/Slider.react.js":34,"./bin/SpriteSheet.react.js":35,"./bin/Table.react.js":36,"./bin/TextArea.react.js":37,"./bin/TextField.react.js":38,"./bin/hooks.js":39,"./bin/plotReducer.js":40}],42:[function(require,module,exports){
 'use strict';
 
 function _toConsumableArray(arr) { if (Array.isArray(arr)) { for (var i = 0, arr2 = Array(arr.length); i < arr.length; i++) { arr2[i] = arr[i]; } return arr2; } else { return Array.from(arr); } }
@@ -4192,7 +4268,7 @@ module.exports = {
   getEntityPositions: getEntityPositions,
   entityInsideGrid: entityInsideGrid
 };
-},{"./helpers":42,"./math":43,"./vectors":46}],42:[function(require,module,exports){
+},{"./helpers":43,"./math":44,"./vectors":47}],43:[function(require,module,exports){
 'use strict';
 
 var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) { return typeof obj; } : function (obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; };
@@ -4356,7 +4432,7 @@ module.exports = {
   deepCopy: deepCopy,
   throttle: throttle, debounce: debounce
 };
-},{"./vectors":46}],43:[function(require,module,exports){
+},{"./vectors":47}],44:[function(require,module,exports){
 "use strict";
 
 var clamp = function clamp(val, min, max) {
@@ -4401,7 +4477,7 @@ module.exports = {
   clamp: clamp,
   subtractWithDeficit: subtractWithDeficit
 };
-},{}],44:[function(require,module,exports){
+},{}],45:[function(require,module,exports){
 'use strict';
 
 function isIpad() {
@@ -4432,7 +4508,7 @@ module.exports = {
   isMobile: isMobile,
   isPhone: isPhone
 };
-},{}],45:[function(require,module,exports){
+},{}],46:[function(require,module,exports){
 "use strict";
 
 var floor = Math.floor,
@@ -4487,7 +4563,7 @@ module.exports = {
   oneOf: oneOf,
   weightedOneOf: weightedOneOf
 };
-},{}],46:[function(require,module,exports){
+},{}],47:[function(require,module,exports){
 "use strict";
 
 var _extends = Object.assign || function (target) { for (var i = 1; i < arguments.length; i++) { var source = arguments[i]; for (var key in source) { if (Object.prototype.hasOwnProperty.call(source, key)) { target[key] = source[key]; } } } return target; };
@@ -4686,7 +4762,7 @@ module.exports = {
   rotate: rotate,
   abs: abs
 };
-},{}],47:[function(require,module,exports){
+},{}],48:[function(require,module,exports){
 
 module.exports = {
   vectors: require('./bin/vectors'),
@@ -4697,7 +4773,7 @@ module.exports = {
   math: require('./bin/math'),
 }
 
-},{"./bin/gridHelpers":41,"./bin/helpers":42,"./bin/math":43,"./bin/platform":44,"./bin/stochastic":45,"./bin/vectors":46}],48:[function(require,module,exports){
+},{"./bin/gridHelpers":42,"./bin/helpers":43,"./bin/math":44,"./bin/platform":45,"./bin/stochastic":46,"./bin/vectors":47}],49:[function(require,module,exports){
 // shim for using process in browser
 var process = module.exports = {};
 
@@ -4883,7 +4959,7 @@ process.chdir = function (dir) {
 };
 process.umask = function() { return 0; };
 
-},{}],49:[function(require,module,exports){
+},{}],50:[function(require,module,exports){
 (function (process){(function (){
 /**
  * @license React
@@ -9838,7 +9914,7 @@ if(/^(https?|file):$/.test(protocol)){// eslint-disable-next-line react-internal
 console.info('%cDownload the React DevTools '+'for a better development experience: '+'https://reactjs.org/link/react-devtools'+(protocol==='file:'?'\nYou might need to use a local HTTP server (instead of file://): '+'https://reactjs.org/link/react-devtools-faq':''),'font-weight:bold');}}}}exports.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED=Internals;exports.createPortal=createPortal$1;exports.createRoot=createRoot$1;exports.findDOMNode=findDOMNode;exports.flushSync=flushSync$1;exports.hydrate=hydrate;exports.hydrateRoot=hydrateRoot$1;exports.render=render;exports.unmountComponentAtNode=unmountComponentAtNode;exports.unstable_batchedUpdates=batchedUpdates$1;exports.unstable_renderSubtreeIntoContainer=renderSubtreeIntoContainer;exports.version=ReactVersion;/* global __REACT_DEVTOOLS_GLOBAL_HOOK__ */if(typeof __REACT_DEVTOOLS_GLOBAL_HOOK__!=='undefined'&&typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop==='function'){__REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop(new Error());}})();}
 
 }).call(this)}).call(this,require('_process'))
-},{"_process":48,"react":55,"scheduler":58}],50:[function(require,module,exports){
+},{"_process":49,"react":56,"scheduler":59}],51:[function(require,module,exports){
 /**
  * @license React
  * react-dom.production.min.js
@@ -10163,7 +10239,7 @@ exports.hydrateRoot=function(a,b,c){if(!ol(a))throw Error(p(405));var d=null!=c&
 e);return new nl(b)};exports.render=function(a,b,c){if(!pl(b))throw Error(p(200));return sl(null,a,b,!1,c)};exports.unmountComponentAtNode=function(a){if(!pl(a))throw Error(p(40));return a._reactRootContainer?(Sk(function(){sl(null,null,a,!1,function(){a._reactRootContainer=null;a[uf]=null})}),!0):!1};exports.unstable_batchedUpdates=Rk;
 exports.unstable_renderSubtreeIntoContainer=function(a,b,c,d){if(!pl(c))throw Error(p(200));if(null==a||void 0===a._reactInternals)throw Error(p(38));return sl(a,b,c,!1,d)};exports.version="18.2.0-next-9e3b772b8-20220608";
 
-},{"react":55,"scheduler":58}],51:[function(require,module,exports){
+},{"react":56,"scheduler":59}],52:[function(require,module,exports){
 (function (process){(function (){
 'use strict';
 
@@ -10192,7 +10268,7 @@ if (process.env.NODE_ENV === 'production') {
 }
 
 }).call(this)}).call(this,require('_process'))
-},{"_process":48,"react-dom":52}],52:[function(require,module,exports){
+},{"_process":49,"react-dom":53}],53:[function(require,module,exports){
 (function (process){(function (){
 'use strict';
 
@@ -10234,7 +10310,7 @@ if (process.env.NODE_ENV === 'production') {
 }
 
 }).call(this)}).call(this,require('_process'))
-},{"./cjs/react-dom.development.js":49,"./cjs/react-dom.production.min.js":50,"_process":48}],53:[function(require,module,exports){
+},{"./cjs/react-dom.development.js":50,"./cjs/react-dom.production.min.js":51,"_process":49}],54:[function(require,module,exports){
 (function (process){(function (){
 /**
  * @license React
@@ -12639,7 +12715,7 @@ if (process.env.NODE_ENV !== "production") {
 }
 
 }).call(this)}).call(this,require('_process'))
-},{"_process":48}],54:[function(require,module,exports){
+},{"_process":49}],55:[function(require,module,exports){
 /**
  * @license React
  * react.production.min.js
@@ -12667,7 +12743,7 @@ exports.useCallback=function(a,b){return U.current.useCallback(a,b)};exports.use
 exports.useInsertionEffect=function(a,b){return U.current.useInsertionEffect(a,b)};exports.useLayoutEffect=function(a,b){return U.current.useLayoutEffect(a,b)};exports.useMemo=function(a,b){return U.current.useMemo(a,b)};exports.useReducer=function(a,b,e){return U.current.useReducer(a,b,e)};exports.useRef=function(a){return U.current.useRef(a)};exports.useState=function(a){return U.current.useState(a)};exports.useSyncExternalStore=function(a,b,e){return U.current.useSyncExternalStore(a,b,e)};
 exports.useTransition=function(){return U.current.useTransition()};exports.version="18.2.0";
 
-},{}],55:[function(require,module,exports){
+},{}],56:[function(require,module,exports){
 (function (process){(function (){
 'use strict';
 
@@ -12678,7 +12754,7 @@ if (process.env.NODE_ENV === 'production') {
 }
 
 }).call(this)}).call(this,require('_process'))
-},{"./cjs/react.development.js":53,"./cjs/react.production.min.js":54,"_process":48}],56:[function(require,module,exports){
+},{"./cjs/react.development.js":54,"./cjs/react.production.min.js":55,"_process":49}],57:[function(require,module,exports){
 (function (process,setImmediate){(function (){
 /**
  * @license React
@@ -13316,7 +13392,7 @@ if (
 }
 
 }).call(this)}).call(this,require('_process'),require("timers").setImmediate)
-},{"_process":48,"timers":59}],57:[function(require,module,exports){
+},{"_process":49,"timers":60}],58:[function(require,module,exports){
 (function (setImmediate){(function (){
 /**
  * @license React
@@ -13339,7 +13415,7 @@ exports.unstable_scheduleCallback=function(a,b,c){var d=exports.unstable_now();"
 exports.unstable_shouldYield=M;exports.unstable_wrapCallback=function(a){var b=y;return function(){var c=y;y=b;try{return a.apply(this,arguments)}finally{y=c}}};
 
 }).call(this)}).call(this,require("timers").setImmediate)
-},{"timers":59}],58:[function(require,module,exports){
+},{"timers":60}],59:[function(require,module,exports){
 (function (process){(function (){
 'use strict';
 
@@ -13350,7 +13426,7 @@ if (process.env.NODE_ENV === 'production') {
 }
 
 }).call(this)}).call(this,require('_process'))
-},{"./cjs/scheduler.development.js":56,"./cjs/scheduler.production.min.js":57,"_process":48}],59:[function(require,module,exports){
+},{"./cjs/scheduler.development.js":57,"./cjs/scheduler.production.min.js":58,"_process":49}],60:[function(require,module,exports){
 (function (setImmediate,clearImmediate){(function (){
 var nextTick = require('process/browser.js').nextTick;
 var apply = Function.prototype.apply;
@@ -13429,4 +13505,4 @@ exports.clearImmediate = typeof clearImmediate === "function" ? clearImmediate :
   delete immediateIds[id];
 };
 }).call(this)}).call(this,require("timers").setImmediate,require("timers").clearImmediate)
-},{"process/browser.js":48,"timers":59}]},{},[3]);
+},{"process/browser.js":49,"timers":60}]},{},[3]);

@@ -14,6 +14,7 @@ const initGameState = (
 
     entities: {},
     visibleEntities: {},
+    planeTypesSeen: {},
     stats: {},
 
     fogLocations: [],
@@ -47,8 +48,11 @@ const initGameState = (
         'MIG-19': {
           name: 'MIG-19', type: 'FIGHTER', fuel: 1200, vision: 50, speed: 1.4, ammo: 1,
         },
+        'Yak-28': {
+          name: 'Yak-28', type: 'FIGHTER', fuel: 1600, vision: 40, speed: 1.2, ammo: 1,
+        },
         'MIG-21': {
-          name: 'MIG-21', type: 'FIGHTER', fuel: 500, vision: 50, speed: 2, ammo: 1,
+          name: 'MIG-21', type: 'FIGHTER', fuel: 600, vision: 50, speed: 2, ammo: 2,
         },
         'IL-28': {
           name: 'IL-28', type: 'BOMBER', fuel: 1400, vision: 60, speed: 1, ammo: 1,
