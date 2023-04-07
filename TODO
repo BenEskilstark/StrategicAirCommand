@@ -2,6 +2,7 @@
   - stalemates are pretty possible
 
   - bugs
+    - explosions just don't happen sometimes in fighter v fighter
     - deselect planes that are destroyed
     - marquee doesn't always render
 

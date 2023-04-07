@@ -92,7 +92,6 @@ const PlayerStats = (props) => {
       <div>Bomber sorties flown: {stats[clientID].bomber_sorties}</div>
       <div>Enemy fighters shot down: {stats[otherID].fighters_shot_down}</div>
       <div>Enemy bombers shot down: {stats[otherID].bombers_shot_down}</div>
-      <div>Fighter aces: {stats[clientID].fighter_aces}</div>
       <div>Planes lost to no fuel: {stats[clientID].planes_no_fuel}</div>
       <div>Enemy airbases destroyed: {stats[otherID].airbases_destroyed}</div>
     </div>
