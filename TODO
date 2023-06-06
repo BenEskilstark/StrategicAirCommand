@@ -1,4 +1,5 @@
 
+  - fix vision locations memory leak
   - stalemates are pretty possible
 
   - bugs

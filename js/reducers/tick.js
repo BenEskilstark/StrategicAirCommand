@@ -195,20 +195,12 @@ const tick = (state) => {
   for (const entityID in game.visibleEntities) {
     const entity = game.entities[entityID];
     if (entity.clientID != game.clientID) continue;
-    positions.push({position: round(entity.position), vision: entity.vision});
-  }
-  for (const loc of positions) {
-    let shouldAdd = true;
-    for (const fogLoc of game.fogLocations) {
-      if (equals(loc.position, fogLoc.position) && loc.vision <= fogLoc.vision) {
-        shouldAdd = false;
-        break;
-      }
-    }
-    if (shouldAdd) {
-      game.fogLocations.push(loc);
+    const loc = {position: round(entity.position), vision: entity.vision};
+    if (!positions.some(fogLoc => equals(fogLoc.position, loc.position) && fogLoc.vision >= loc.vision)) {
+      positions.push(loc);
     }
   }
+  game.fogLocations = positions;
 
   // deselect entities that don't exist
   const selectedIDs = [];

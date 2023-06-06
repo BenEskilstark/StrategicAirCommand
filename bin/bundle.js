@@ -533,23 +533,15 @@ const tick = state => {
   for (const entityID in game.visibleEntities) {
     const entity = game.entities[entityID];
     if (entity.clientID != game.clientID) continue;
-    positions.push({
+    const loc = {
       position: round(entity.position),
       vision: entity.vision
-    });
-  }
-  for (const loc of positions) {
-    let shouldAdd = true;
-    for (const fogLoc of game.fogLocations) {
-      if (equals(loc.position, fogLoc.position) && loc.vision <= fogLoc.vision) {
-        shouldAdd = false;
-        break;
-      }
-    }
-    if (shouldAdd) {
-      game.fogLocations.push(loc);
+    };
+    if (!positions.some(fogLoc => equals(fogLoc.position, loc.position) && fogLoc.vision >= loc.vision)) {
+      positions.push(loc);
     }
   }
+  game.fogLocations = positions;
 
   // deselect entities that don't exist
   const selectedIDs = [];
@@ -882,84 +874,6 @@ const initGameState = (clientIDs, config) => {
     showEnemyFlightPaths: false,
     // for debugging
 
-    planeDesigns: {
-      1: {
-        'U-2': {
-          name: 'U-2',
-          type: 'RECON',
-          fuel: 3000,
-          vision: 120,
-          speed: 0.75,
-          ammo: 0
-        },
-        'B-52': {
-          name: 'B-52',
-          type: 'BOMBER',
-          fuel: 2400,
-          vision: 40,
-          speed: 0.9,
-          ammo: 1
-        },
-        'F-101': {
-          name: 'F-101',
-          type: 'FIGHTER',
-          fuel: 1500,
-          vision: 45,
-          speed: 1.8,
-          ammo: 4
-        },
-        'F-106': {
-          name: 'F-106',
-          type: 'FIGHTER',
-          fuel: 600,
-          vision: 55,
-          speed: 2.3,
-          ammo: 3
-        }
-      },
-      2: {
-        'MIG-19': {
-          name: 'MIG-19',
-          type: 'FIGHTER',
-          fuel: 1200,
-          vision: 50,
-          speed: 1.4,
-          ammo: 1
-        },
-        'Yak-28': {
-          name: 'Yak-28',
-          type: 'FIGHTER',
-          fuel: 1600,
-          vision: 40,
-          speed: 1.2,
-          ammo: 1
-        },
-        'MIG-21': {
-          name: 'MIG-21',
-          type: 'FIGHTER',
-          fuel: 600,
-          vision: 50,
-          speed: 2,
-          ammo: 2
-        },
-        'IL-28': {
-          name: 'IL-28',
-          type: 'BOMBER',
-          fuel: 1400,
-          vision: 60,
-          speed: 1,
-          ammo: 1
-        },
-        'TU-95': {
-          name: 'TU-95',
-          type: 'BOMBER',
-          fuel: 3000,
-          vision: 60,
-          speed: 0.6,
-          ammo: 1
-        }
-      }
-    },
     hotKeys: {
       onKeyDown: {},
       onKeyPress: {},
@@ -1015,26 +929,65 @@ const makeAirbase = (clientID, position, planes) => {
     targetEnemy: null
   };
 };
-const makePlane = (clientID, position, type, targetPos, parameters) => {
-  const {
-    fuel,
-    vision,
-    speed,
-    name,
-    ammo
-  } = parameters;
+const makeCity = (clientID, position) => {
   return {
     clientID,
     id: nextID++,
-    type,
-    // FIGHTER | BOMBER | RECON
+    type: "CITY",
+    name: "CITY",
+    // helps with selection
+    isBuilding: true,
+    vision: 15,
+    position,
+    speed: 0,
+    targetPos: {
+      ...position
+    },
+    targetEnemy: null
+  };
+};
+const makeFactory = (clientID, position) => {
+  return {
+    clientID,
+    id: nextID++,
+    type: "FACTORY",
+    name: "FACTORY",
+    // helps with selection
+    isBuilding: true,
+    vision: 15,
+    position,
+    speed: 0,
+    targetPos: {
+      ...position
+    },
+    targetEnemy: null
+  };
+};
+const makeLab = (clientID, position) => {
+  return {
+    clientID,
+    id: nextID++,
+    type: "LAB",
+    name: "LAB",
+    // helps with selection
+    isBuilding: true,
+    vision: 15,
+    position,
+    speed: 0,
+    targetPos: {
+      ...position
+    },
+    targetEnemy: null
+  };
+};
+const makePlane = (clientID, position, targetPos, parameters) => {
+  return {
+    clientID,
+    id: nextID++,
+    type: 'PLANE',
     isPlane: true,
     // dynamic parameters
-    fuel,
-    vision,
-    speed,
-    name,
-    ammo,
+    ...parameters,
     position,
     targetPos,
     targetEnemy: null,
@@ -1056,6 +1009,9 @@ const makeExplosion = (position, maxRadius, duration) => {
 module.exports = {
   initGameState,
   makeAirbase,
+  makeCity,
+  makeFactory,
+  makeLab,
   makePlane,
   makeExplosion
 };
